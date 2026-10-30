@@ -5,10 +5,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -18,9 +21,153 @@ func TestSyntheticHost(t *testing.T) {
 		return
 	}
 	fmt.Println("READY")
+	time.AfterFunc(15*time.Second, func() { os.Exit(0) })
 	line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
 	fmt.Printf("RECEIVED:%s", line)
 	os.Exit(0)
+}
+
+func TestHolderProcess(t *testing.T) {
+	if os.Getenv("CREW_HOLD_TEST_HOLDER") != "1" {
+		return
+	}
+	if err := serve(os.Getenv("CREW_HOLD_TEST_RUNTIME"), []string{os.Args[0], "-test.run=^TestSyntheticHost$"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBackgroundProcess(t *testing.T) {
+	if os.Getenv("CREW_HOLD_TEST_BACKGROUND") != "1" {
+		return
+	}
+	if err := background(os.Getenv("CREW_HOLD_TEST_ROOT")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBackgroundSurvivesRestart(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Chmod(root, 0700); err != nil {
+		t.Fatal(err)
+	}
+	project := filepath.Join(root, "example-project")
+	if err := os.Mkdir(project, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := exec.Command("git", "init", "-q", project).CombinedOutput(); err != nil {
+		t.Fatalf("git init: %s: %v", out, err)
+	}
+	runtime, err := os.MkdirTemp(root, "crew-hold-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	holderCmd := exec.Command(os.Args[0], "-test.run=^TestHolderProcess$")
+	holderCmd.Dir = project
+	holderCmd.Env = append(os.Environ(), "CREW_HOLD_TEST_HOLDER=1", "CREW_HOLD_TEST_HOST=1", "CREW_HOLD_TEST_RUNTIME="+runtime)
+	if err := holderCmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if holderCmd.ProcessState == nil {
+			holderCmd.Process.Kill()
+			holderCmd.Wait()
+		}
+	})
+	socket := filepath.Join(runtime, "hold.sock")
+	for i := 0; i < 100; i++ {
+		if _, err := os.Stat(socket); err == nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if _, err := os.Stat(socket); err != nil {
+		t.Fatal(err)
+	}
+	startBackground := func() (*exec.Cmd, io.WriteCloser, <-chan message) {
+		t.Helper()
+		cmd := exec.Command(os.Args[0], "-test.run=^TestBackgroundProcess$")
+		cmd.Env = append(os.Environ(), "CREW_HOLD_TEST_BACKGROUND=1", "CREW_HOLD_TEST_ROOT="+root)
+		stdin, err := cmd.StdinPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			if cmd.ProcessState == nil {
+				cmd.Process.Kill()
+				cmd.Wait()
+			}
+		})
+		messages := make(chan message, 16)
+		go func() {
+			defer close(messages)
+			dec := json.NewDecoder(stdout)
+			for {
+				var msg message
+				if dec.Decode(&msg) != nil {
+					return
+				}
+				messages <- msg
+			}
+		}()
+		return cmd, stdin, messages
+	}
+	readUntil := func(messages <-chan message, want string) {
+		t.Helper()
+		deadline := time.After(3 * time.Second)
+		var got strings.Builder
+		for !strings.Contains(got.String(), want) {
+			select {
+			case msg, ok := <-messages:
+				if !ok {
+					t.Fatal("background closed before output")
+				}
+				if msg.Session != filepath.Base(runtime) && msg.Op != "ready" {
+					t.Fatalf("unexpected session %q", msg.Session)
+				}
+				data, err := base64.StdEncoding.DecodeString(msg.Data)
+				if err != nil {
+					t.Fatal(err)
+				}
+				got.Write(data)
+			case <-deadline:
+				t.Fatalf("output %q missing", want)
+			}
+		}
+	}
+	first, _, firstMessages := startBackground()
+	readUntil(firstMessages, "READY")
+	if err := first.Process.Kill(); err != nil {
+		t.Fatal(err)
+	}
+	if err := first.Wait(); err == nil {
+		t.Fatal("hard stop unexpectedly succeeded")
+	}
+	if err := holderCmd.Process.Signal(syscall.Signal(0)); err != nil {
+		t.Fatalf("holder ended with background: %v", err)
+	}
+	second, stdin, secondMessages := startBackground()
+	readUntil(secondMessages, "READY")
+	if err := json.NewEncoder(stdin).Encode(message{Op: "resize", Session: filepath.Base(runtime), Rows: 24, Cols: 80}); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.NewEncoder(stdin).Encode(message{Op: "input", Session: filepath.Base(runtime), Data: base64.StdEncoding.EncodeToString([]byte("hello\n"))}); err != nil {
+		t.Fatal(err)
+	}
+	readUntil(secondMessages, "RECEIVED:hello")
+	stdin.Close()
+	if err := second.Wait(); err != nil {
+		t.Fatal(err)
+	}
+	if err := holderCmd.Wait(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestHolderReconnect(t *testing.T) {

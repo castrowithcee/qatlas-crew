@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -24,10 +25,11 @@ import (
 const bufferLimit = 64 << 10
 
 type message struct {
-	Op   string `json:"op,omitempty"`
-	Data string `json:"data,omitempty"`
-	Rows uint16 `json:"rows,omitempty"`
-	Cols uint16 `json:"cols,omitempty"`
+	Op      string `json:"op,omitempty"`
+	Session string `json:"session,omitempty"`
+	Data    string `json:"data,omitempty"`
+	Rows    uint16 `json:"rows,omitempty"`
+	Cols    uint16 `json:"cols,omitempty"`
 }
 
 type holder struct {
@@ -39,7 +41,7 @@ type holder struct {
 
 func main() {
 	if len(os.Args) < 2 {
-		fatal("usage: crew-hold start <host> [args...] | attach <socket> | serve <runtime> <host> [args...]")
+		fatal("usage: crew-hold start <host> [args...] | attach <socket> | background <runtime-root> | serve <runtime> <host> [args...]")
 	}
 	var err error
 	switch os.Args[1] {
@@ -58,6 +60,11 @@ func main() {
 			fatal("attach needs a socket")
 		}
 		err = attach(os.Args[2])
+	case "background":
+		if len(os.Args) != 3 {
+			fatal("background needs a runtime root")
+		}
+		err = background(os.Args[2])
 	default:
 		fatal("unknown command")
 	}
@@ -276,6 +283,87 @@ func attach(socket string) error {
 			return err
 		}
 		if _, err := os.Stdout.Write(data); err != nil {
+			return err
+		}
+	}
+}
+
+func background(root string) error {
+	info, err := os.Lstat(root)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() || info.Mode().Perm() != 0700 || info.Sys().(*syscall.Stat_t).Uid != uint32(os.Getuid()) {
+		return errors.New("unsafe runtime root")
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return err
+	}
+	sessions := make(map[string]net.Conn)
+	defer func() {
+		for _, conn := range sessions {
+			conn.Close()
+		}
+	}()
+	var outputMu sync.Mutex
+	output := json.NewEncoder(os.Stdout)
+	emit := func(msg message) error {
+		outputMu.Lock()
+		defer outputMu.Unlock()
+		return output.Encode(msg)
+	}
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), "crew-hold-") || !entry.IsDir() {
+			continue
+		}
+		dir := filepath.Join(root, entry.Name())
+		info, err := os.Lstat(dir)
+		if err != nil || !info.IsDir() || info.Mode().Perm() != 0700 || info.Sys().(*syscall.Stat_t).Uid != uint32(os.Getuid()) {
+			continue
+		}
+		socket := filepath.Join(dir, "hold.sock")
+		info, err = os.Lstat(socket)
+		if err != nil || info.Mode()&os.ModeSocket == 0 || info.Mode().Perm() != 0600 || info.Sys().(*syscall.Stat_t).Uid != uint32(os.Getuid()) {
+			continue
+		}
+		conn, err := net.DialTimeout("unix", socket, time.Second)
+		if err != nil {
+			continue
+		}
+		name := entry.Name()
+		sessions[name] = conn
+		go func() {
+			dec := json.NewDecoder(conn)
+			for {
+				var msg message
+				if dec.Decode(&msg) != nil {
+					return
+				}
+				msg.Session = name
+				if emit(msg) != nil {
+					return
+				}
+			}
+		}()
+	}
+	if err := emit(message{Op: "ready"}); err != nil {
+		return err
+	}
+	dec := json.NewDecoder(os.Stdin)
+	for {
+		var msg message
+		if err := dec.Decode(&msg); err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
+			return err
+		}
+		conn, ok := sessions[msg.Session]
+		if !ok || (msg.Op != "input" && msg.Op != "resize") {
+			return errors.New("unknown session or operation")
+		}
+		if err := json.NewEncoder(conn).Encode(message{Op: msg.Op, Data: msg.Data, Rows: msg.Rows, Cols: msg.Cols}); err != nil {
 			return err
 		}
 	}
