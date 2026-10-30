@@ -22,7 +22,10 @@ import (
 	"github.com/creack/pty"
 )
 
-const bufferLimit = 64 << 10
+const (
+	bufferLimit = 64 << 10
+	stopGrace   = 2 * time.Second
+)
 
 type message struct {
 	Op      string `json:"op,omitempty"`
@@ -37,11 +40,15 @@ type holder struct {
 	pty     *os.File
 	buffer  []byte
 	clients map[chan []byte]net.Conn
+	pid     int
+	pgid    int
+	stopMu  sync.Mutex
+	exited  bool
 }
 
 func main() {
 	if len(os.Args) < 2 {
-		fatal("usage: crew-hold start <host> [args...] | attach <socket> | background <runtime-root> | serve <runtime> <host> [args...]")
+		fatal("usage: crew-hold start <host> [args...] | attach <socket> | stop <socket> | background <runtime-root> | serve <runtime> <host> [args...]")
 	}
 	var err error
 	switch os.Args[1] {
@@ -60,6 +67,11 @@ func main() {
 			fatal("attach needs a socket")
 		}
 		err = attach(os.Args[2])
+	case "stop":
+		if len(os.Args) != 3 {
+			fatal("stop needs a socket")
+		}
+		err = stop(os.Args[2])
 	case "background":
 		if len(os.Args) != 3 {
 			fatal("background needs a runtime root")
@@ -132,6 +144,12 @@ func serve(runtime string, host []string) error {
 		return err
 	}
 	defer pt.Close()
+	pgid, err := processGroup(cmd.Process.Pid, syscall.Getpgid)
+	if err != nil {
+		cmd.Process.Kill()
+		cmd.Wait()
+		return err
+	}
 	socket := filepath.Join(runtime, "hold.sock")
 	ln, err := net.Listen("unix", socket)
 	if err != nil {
@@ -141,7 +159,7 @@ func serve(runtime string, host []string) error {
 	if err = os.Chmod(socket, 0600); err != nil {
 		return err
 	}
-	h := &holder{pty: pt, clients: make(map[chan []byte]net.Conn)}
+	h := &holder{pty: pt, clients: make(map[chan []byte]net.Conn), pid: cmd.Process.Pid, pgid: pgid}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -167,7 +185,49 @@ func serve(runtime string, host []string) error {
 		}
 		go h.client(conn)
 	}
-	return cmd.Wait()
+	// Do not reap the child while a stop can still signal its process group.
+	h.stopMu.Lock()
+	err = cmd.Wait()
+	h.exited = true
+	h.stopMu.Unlock()
+	return err
+}
+
+func processGroup(pid int, getpgid func(int) (int, error)) (int, error) {
+	if pid <= 1 || pid == os.Getpid() {
+		return 0, errors.New("unsafe child PID")
+	}
+	selfGroup, err := getpgid(0)
+	if err != nil {
+		return 0, fmt.Errorf("read holder process group: %w", err)
+	}
+	group, err := getpgid(pid)
+	if err != nil {
+		return 0, fmt.Errorf("read child process group: %w", err)
+	}
+	if group != pid || group == selfGroup {
+		return 0, errors.New("child is not in its own process group")
+	}
+	return group, nil
+}
+
+func stopGroup(pid, group int, getpgid func(int) (int, error), signal func(int, syscall.Signal) error, pause func(time.Duration)) error {
+	for _, sig := range []syscall.Signal{syscall.SIGTERM, syscall.SIGKILL} {
+		current, err := processGroup(pid, getpgid)
+		if err != nil || current != group {
+			return errors.New("refusing stop: child process group binding is unclear")
+		}
+		if err := signal(-group, sig); err != nil {
+			if errors.Is(err, syscall.ESRCH) {
+				return nil
+			}
+			return err
+		}
+		if sig == syscall.SIGTERM {
+			pause(stopGrace)
+		}
+	}
+	return nil
 }
 
 func (h *holder) publish(data []byte) {
@@ -190,6 +250,7 @@ func (h *holder) publish(data []byte) {
 
 func (h *holder) client(conn net.Conn) {
 	defer conn.Close()
+	var writeMu sync.Mutex
 	ch := make(chan []byte, 32)
 	h.mu.Lock()
 	ch <- append([]byte(nil), h.buffer...)
@@ -206,10 +267,13 @@ func (h *holder) client(conn net.Conn) {
 	go func() {
 		enc := json.NewEncoder(conn)
 		for data := range ch {
+			writeMu.Lock()
 			if err := enc.Encode(message{Data: base64.StdEncoding.EncodeToString(data)}); err != nil {
+				writeMu.Unlock()
 				conn.Close()
 				return
 			}
+			writeMu.Unlock()
 		}
 	}()
 	dec := json.NewDecoder(conn)
@@ -234,8 +298,55 @@ func (h *holder) client(conn net.Conn) {
 			if err := pty.Setsize(h.pty, &pty.Winsize{Rows: msg.Rows, Cols: msg.Cols}); err != nil {
 				return
 			}
+		case "stop":
+			h.mu.Lock()
+			if _, ok := h.clients[ch]; ok {
+				delete(h.clients, ch)
+				close(ch)
+			}
+			h.mu.Unlock()
+			h.stopMu.Lock()
+			var stopErr error
+			if h.exited {
+				stopErr = errors.New("host already exited")
+			} else {
+				stopErr = stopGroup(h.pid, h.pgid, syscall.Getpgid, syscall.Kill, time.Sleep)
+			}
+			response := message{Op: "stopped"}
+			if stopErr != nil {
+				response = message{Op: "error", Data: stopErr.Error()}
+			}
+			writeMu.Lock()
+			json.NewEncoder(conn).Encode(response)
+			writeMu.Unlock()
+			h.stopMu.Unlock()
+			return
 		default:
 			return
+		}
+	}
+}
+
+func stop(socket string) error {
+	conn, err := net.Dial("unix", socket)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	if err := json.NewEncoder(conn).Encode(message{Op: "stop"}); err != nil {
+		return err
+	}
+	dec := json.NewDecoder(conn)
+	for {
+		var msg message
+		if err := dec.Decode(&msg); err != nil {
+			return err
+		}
+		switch msg.Op {
+		case "stopped":
+			return nil
+		case "error":
+			return errors.New(msg.Data)
 		}
 	}
 }
@@ -360,7 +471,7 @@ func background(root string) error {
 			return err
 		}
 		conn, ok := sessions[msg.Session]
-		if !ok || (msg.Op != "input" && msg.Op != "resize") {
+		if !ok || (msg.Op != "input" && msg.Op != "resize" && msg.Op != "stop") {
 			return errors.New("unknown session or operation")
 		}
 		if err := json.NewEncoder(conn).Encode(message{Op: msg.Op, Data: msg.Data, Rows: msg.Rows, Cols: msg.Cols}); err != nil {

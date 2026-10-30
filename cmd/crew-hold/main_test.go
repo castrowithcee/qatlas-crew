@@ -27,6 +27,47 @@ func TestSyntheticHost(t *testing.T) {
 	os.Exit(0)
 }
 
+func TestSyntheticInterruptHost(t *testing.T) {
+	if os.Getenv("CREW_HOLD_TEST_INTERRUPT_HOST") != "1" {
+		return
+	}
+	stty := exec.Command("stty", "raw", "-echo")
+	stty.Stdin = os.Stdin
+	if err := stty.Run(); err != nil {
+		t.Fatal(err)
+	}
+	fmt.Print("READY")
+	input := make(chan byte)
+	go func() {
+		reader := bufio.NewReader(os.Stdin)
+		for {
+			b, err := reader.ReadByte()
+			if err != nil {
+				return
+			}
+			input <- b
+		}
+	}()
+	ticker := time.NewTicker(20 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case b := <-input:
+			if b == 0x1b {
+				fmt.Print("INTERRUPTED")
+				for b := range input {
+					if b == 'x' {
+						fmt.Print("HOST_OPEN")
+						os.Exit(0)
+					}
+				}
+			}
+		case <-ticker.C:
+			fmt.Print("WORKING")
+		}
+	}
+}
+
 func TestHolderProcess(t *testing.T) {
 	if os.Getenv("CREW_HOLD_TEST_HOLDER") != "1" {
 		return
@@ -252,5 +293,146 @@ func TestRingBufferBounded(t *testing.T) {
 	h.publish([]byte(strings.Repeat("x", bufferLimit+9)))
 	if len(h.buffer) != bufferLimit {
 		t.Fatalf("buffer length %d", len(h.buffer))
+	}
+}
+
+func TestStopGroupSignalsOnlyBoundChild(t *testing.T) {
+	const child = 12345
+	var sent []syscall.Signal
+	lookup := func(pid int) (int, error) {
+		if pid == 0 {
+			return 100, nil
+		}
+		if pid == child {
+			return child, nil
+		}
+		return 0, syscall.ESRCH
+	}
+	if err := stopGroup(child, child, lookup, func(pid int, sig syscall.Signal) error {
+		if pid != -child {
+			t.Fatalf("signaled process group %d", pid)
+		}
+		sent = append(sent, sig)
+		return nil
+	}, func(d time.Duration) {
+		if d != stopGrace {
+			t.Fatalf("grace period %s", d)
+		}
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(sent) != 2 || sent[0] != syscall.SIGTERM || sent[1] != syscall.SIGKILL {
+		t.Fatalf("signals %v", sent)
+	}
+	for _, tc := range []struct {
+		name  string
+		pid   int
+		group int
+		own   int
+	}{
+		{"zero PID", 0, 0, 100},
+		{"negative PID", -1, -1, 100},
+		{"group mismatch", child, child + 1, 100},
+		{"holder group", child, child, child},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := stopGroup(tc.pid, tc.group, func(pid int) (int, error) {
+				if pid == 0 {
+					return tc.own, nil
+				}
+				return child, nil
+			}, func(int, syscall.Signal) error {
+				t.Fatal("unsafe signal")
+				return nil
+			}, func(time.Duration) {})
+			if err == nil {
+				t.Fatal("unsafe group accepted")
+			}
+		})
+	}
+	checks := 0
+	sent = nil
+	err := stopGroup(child, child, func(pid int) (int, error) {
+		if pid == 0 {
+			return 100, nil
+		}
+		checks++
+		if checks == 2 {
+			return child + 1, nil
+		}
+		return child, nil
+	}, func(_ int, sig syscall.Signal) error {
+		sent = append(sent, sig)
+		return nil
+	}, func(time.Duration) {})
+	if err == nil || len(sent) != 1 || sent[0] != syscall.SIGTERM {
+		t.Fatalf("changed binding: err=%v signals=%v", err, sent)
+	}
+}
+
+func TestEscInterruptKeepsHostOpen(t *testing.T) {
+	root := t.TempDir()
+	project := filepath.Join(root, "example-project")
+	if err := os.Mkdir(project, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := exec.Command("git", "init", "-q", project).CombinedOutput(); err != nil {
+		t.Fatalf("git init: %s: %v", out, err)
+	}
+	t.Chdir(project)
+	runtime := filepath.Join(root, "runtime")
+	if err := os.Mkdir(runtime, 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CREW_HOLD_TEST_INTERRUPT_HOST", "1")
+	done := make(chan error, 1)
+	go func() { done <- serve(runtime, []string{os.Args[0], "-test.run=^TestSyntheticInterruptHost$"}) }()
+	socket := filepath.Join(runtime, "hold.sock")
+	var conn net.Conn
+	var err error
+	for i := 0; i < 100; i++ {
+		conn, err = net.Dial("unix", socket)
+		if err == nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	dec := json.NewDecoder(conn)
+	readUntil := func(want string) {
+		t.Helper()
+		conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+		var got strings.Builder
+		for !strings.Contains(got.String(), want) {
+			var msg message
+			if err := dec.Decode(&msg); err != nil {
+				t.Fatal(err)
+			}
+			data, err := base64.StdEncoding.DecodeString(msg.Data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got.Write(data)
+		}
+	}
+	readUntil("WORKING")
+	if err := json.NewEncoder(conn).Encode(message{Op: "input", Data: base64.StdEncoding.EncodeToString([]byte{0x1b})}); err != nil {
+		t.Fatal(err)
+	}
+	readUntil("INTERRUPTED")
+	if err := json.NewEncoder(conn).Encode(message{Op: "input", Data: base64.StdEncoding.EncodeToString([]byte{'x'})}); err != nil {
+		t.Fatal(err)
+	}
+	readUntil("HOST_OPEN")
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("host did not exit")
 	}
 }
