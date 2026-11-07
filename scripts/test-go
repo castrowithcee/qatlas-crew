@@ -1,0 +1,61 @@
+#!/bin/sh
+# Runs one test level. Usage: scripts/test-go fast|full|e2e|ext|snap [./pkg/... | run-regexp]...
+# Called through scripts/test-run, which supplies the budget (TEST_JOBS) and the offline environment.
+set -eu
+
+mode=$1
+shift
+pkgs=
+run=
+for a in "$@"; do
+	case $a in
+	./*) pkgs="$pkgs $a" ;;
+	*) run=$a ;;
+	esac
+done
+
+tags=
+flags=
+case $mode in
+fast) flags=-failfast ;;
+full) tags=integration flags=-shuffle=on ;;
+e2e)
+	tags=e2e
+	[ -n "$pkgs" ] || pkgs="./e2e/... ./internal/tui/..."
+	;;
+ext) tags=ext ;;
+snap)
+	tags=e2e
+	# Only packages with tests define the -update flag; go test fails on the others.
+	pkgs=$(go list -tags e2e -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./internal/tui/...)
+	if [ -z "$pkgs" ]; then
+		echo "snap-update: no golden tests yet"
+		exit 0
+	fi
+	;;
+*)
+	echo "test-go: unknown mode $mode" >&2
+	exit 2
+	;;
+esac
+[ -n "$pkgs" ] || pkgs=./...
+
+if [ "$mode" = fast ] || [ "$mode" = full ]; then
+	unformatted=$(gofmt -l .)
+	if [ -n "$unformatted" ]; then
+		echo "gofmt: needs formatting:" >&2
+		echo "$unformatted" >&2
+		exit 1
+	fi
+	# Vet every build tag so tagged test files are checked even when they do not run.
+	# shellcheck disable=SC2086
+	go vet -tags integration,e2e,ext $pkgs
+fi
+
+# -v only feeds the slowest-tests summary of scripts/test-run.
+[ -z "${TEST_SLOW:-}" ] || flags="$flags -v"
+[ "$mode" != snap ] || flags="$flags -update"
+[ -z "$run" ] || flags="$flags -run=$run"
+
+# shellcheck disable=SC2086
+exec go test -count=1 -p "${TEST_JOBS:-2}" ${tags:+-tags "$tags"} $flags $pkgs

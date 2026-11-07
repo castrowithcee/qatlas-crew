@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+env:
+  TEST_SLOTS: "1"
+  TEST_TIMEOUT: "15m"
+  TEST_TIMEOUT_E2E: "25m"
+
+jobs:
+  # Pull requests run the Linux jobs only; the macOS jobs run on main and tags.
+  test-linux:
+    name: test (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TEST_JOBS: "4"
+      TEST_CPU: "400%"
+      TEST_MEM: "12G"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+      - name: Install tmux
+        run: sudo apt-get update -q && sudo apt-get install -y -q tmux
+      - run: just deps
+      - run: just test
+
+  e2e-linux:
+    name: e2e (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TEST_JOBS: "4"
+      TEST_CPU: "400%"
+      TEST_MEM: "12G"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+      - run: just deps
+      - run: just test-e2e
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+      - run: just deps
+      - name: Cross-build
+        run: |
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
+            GOOS=${target%/*} GOARCH=${target#*/} go build -o /dev/null .
+          done
+
+  test-macos:
+    name: test (macos-latest)
+    if: github.event_name == 'push'
+    runs-on: macos-latest
+    timeout-minutes: 30
+    env:
+      TEST_JOBS: "3"
+      TEST_CPU: "300%"
+      TEST_MEM: "5G"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+      - name: Install tmux
+        run: brew install tmux
+      - run: just deps
+      - run: just test
+
+  e2e-macos:
+    name: e2e (macos-latest)
+    if: github.event_name == 'push'
+    runs-on: macos-latest
+    timeout-minutes: 30
+    env:
+      TEST_JOBS: "3"
+      TEST_CPU: "300%"
+      TEST_MEM: "5G"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+      - run: just deps
+      - run: just test-e2e
