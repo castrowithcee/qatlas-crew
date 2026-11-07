@@ -1,0 +1,2 @@
+# Placeholder: the release key is added here, and to trustedKeyLines in internal/release/release.go,
+# before the first tag. Lines are "qcrew-release ssh-ed25519 <key>". A release build fails while no key is listed.

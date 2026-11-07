@@ -1,0 +1,44 @@
+// Package release holds the identity qcrew trusts for its releases: the signature namespace and the public
+// keys that may sign a release. Verification itself lives in qatlas-kit.
+package release
+
+import (
+	"strings"
+
+	"golang.org/x/crypto/ssh"
+)
+
+// Namespace is the SSHSIG namespace every release signature is made for.
+const Namespace = "qcrew-release"
+
+// SignatureAsset is the name of the release file that holds the signature over checksums.txt.
+const SignatureAsset = "checksums.txt.sig"
+
+// trustedKeyLines lists the public keys that may sign a release, in authorized_keys format. A successor key
+// is added one release before a rotation so that installed programs already trust it. The list is fixed at
+// build time: nothing at run time extends or replaces it. It must match .github/release-allowed-signers.
+// It is empty until the release key exists, so no release verifies before then.
+var trustedKeyLines = []string{}
+
+// extraKeyLines is set at build time only (-ldflags -X) to trust further keys, one authorized_keys line per
+// line, so that end-to-end tests can run a real binary against test releases.
+var extraKeyLines string
+
+// TrustedKeys returns the compiled-in public keys that may sign a release.
+func TrustedKeys() []ssh.PublicKey {
+	lines := append([]string(nil), trustedKeyLines...)
+	for _, line := range strings.Split(extraKeyLines, "\n") {
+		if strings.TrimSpace(line) != "" {
+			lines = append(lines, line)
+		}
+	}
+	keys := make([]ssh.PublicKey, 0, len(lines))
+	for _, line := range lines {
+		key, _, _, _, err := ssh.ParseAuthorizedKey([]byte(line))
+		if err != nil {
+			panic("release: invalid compiled-in public key: " + err.Error())
+		}
+		keys = append(keys, key)
+	}
+	return keys
+}
