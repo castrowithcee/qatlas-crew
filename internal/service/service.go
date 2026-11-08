@@ -3,12 +3,14 @@ package service
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
@@ -16,6 +18,7 @@ import (
 	"github.com/castrowithcee/qatlas-kit/localipc"
 
 	"github.com/castrowithcee/qatlas-crew/internal/control"
+	"github.com/castrowithcee/qatlas-crew/internal/project"
 )
 
 // ErrRunning means another service already listens on the channel.
@@ -47,6 +50,8 @@ type Options struct {
 	Version string
 	// Home is the user's home directory; empty means os.UserHomeDir.
 	Home string
+	// Config is the path of the configuration file; empty means config.yaml in the qcrew data directory.
+	Config string
 	// Ready is called once the service listens, before it accepts the first connection.
 	Ready func()
 
@@ -56,15 +61,16 @@ type Options struct {
 	logMax          int64
 }
 
-// handler answers one operation. A *control.Error answers with its code; any other error answers with the
-// runtime code and its text stays in the log.
-type handler func(ctx context.Context) (any, error)
+// handler answers one operation with its arguments, which may be empty. A *control.Error answers with its
+// code; any other error answers with the runtime code and its text stays in the log.
+type handler func(ctx context.Context, args json.RawMessage) (any, error)
 
 type server struct {
 	log      *slog.Logger
 	started  time.Time
 	version  string
 	ops      map[string]handler
+	projects *project.Registry
 	cancel   context.CancelFunc
 	replaced func() (string, bool, error)
 	every    time.Duration
@@ -84,6 +90,14 @@ func Run(ctx context.Context, opts Options) error {
 		if home, err = os.UserHomeDir(); err != nil {
 			return fmt.Errorf("cannot find the home directory: %w", err)
 		}
+	}
+	configPath := opts.Config
+	if configPath == "" {
+		configPath = filepath.Join(control.DataDir(home), control.ConfigFile)
+	}
+	projects, err := project.NewRegistry(configPath)
+	if err != nil {
+		return fmt.Errorf("open the configuration %s: %w", configPath, err)
 	}
 	// No Harden: on Linux it hides the program file from the clients, whose check of the service then fails
 	// closed. The service holds no secret yet; hardening comes with a challenge that replaces that check.
@@ -116,6 +130,7 @@ func Run(ctx context.Context, opts Options) error {
 	s := &server{
 		log: slog.New(slog.NewTextHandler(logw, nil)), started: time.Now().UTC(), version: opts.Version,
 		cancel: cancel, replaced: opts.programReplaced, every: opts.watchEvery, conns: map[net.Conn]struct{}{},
+		projects: projects,
 	}
 	if s.replaced == nil {
 		s.replaced = localipc.ProgramReplaced
@@ -124,14 +139,16 @@ func Run(ctx context.Context, opts Options) error {
 		s.every = watchEvery
 	}
 	s.ops = map[string]handler{
-		control.OpPing: func(context.Context) (any, error) { return struct{}{}, nil },
-		control.OpStop: func(context.Context) (any, error) { return struct{}{}, nil },
-		control.OpStatus: func(context.Context) (any, error) {
-			return control.StatusResult{Version: s.version, PID: os.Getpid(), StartedAt: s.started}, nil
+		control.OpPing: func(context.Context, json.RawMessage) (any, error) { return struct{}{}, nil },
+		control.OpStop: func(context.Context, json.RawMessage) (any, error) { return struct{}{}, nil },
+		control.OpStatus: func(context.Context, json.RawMessage) (any, error) {
+			return control.StatusResult{Version: s.version, PID: os.Getpid(), StartedAt: s.started,
+				Config: s.projects.Path()}, nil
 		},
 	}
+	s.addProjectOps()
 
-	s.log.Info("service started", "pid", os.Getpid(), "version", s.version)
+	s.log.Info("service started", "pid", os.Getpid(), "version", s.version, "config", s.projects.Path())
 	if opts.Ready != nil {
 		opts.Ready()
 	}
@@ -276,7 +293,7 @@ func (s *server) dispatch(ctx context.Context, msg []byte) (answer []byte, stop 
 			answer, stop = control.EncodeError(control.CodeRuntime, "the operation failed"), false
 		}
 	}()
-	result, err := h(ctx)
+	result, err := h(ctx, req.Args)
 	if err != nil {
 		var ce *control.Error
 		if errors.As(err, &ce) {

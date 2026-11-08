@@ -29,6 +29,8 @@ func TestEncodeGolden(t *testing.T) {
 	cases := []struct{ name, got, want string }{
 		{"ping", req(OpPing, nil), `{"v":1,"op":"ping"}` + "\n"},
 		{"args", req("echo-1", map[string]any{"a": 1}), `{"v":1,"op":"echo-1","args":{"a":1}}` + "\n"},
+		{"project add", req(OpProjectAdd, ProjectAddArgs{Path: "/p/x"}), `{"v":1,"op":"project.add","args":{"path":"/p/x"}}` + "\n"},
+		{"project remove", req(OpProjectRemove, ProjectRefArgs{Ref: "x"}), `{"v":1,"op":"project.remove","args":{"ref":"x"}}` + "\n"},
 		{"ok empty", ok(struct{}{}), `{"ok":true,"result":{}}` + "\n"},
 		{"ok none", ok(nil), `{"ok":true}` + "\n"},
 		{"status", ok(StatusResult{Version: "v1.2.3", PID: 42, StartedAt: start}),
@@ -44,8 +46,9 @@ func TestEncodeGolden(t *testing.T) {
 }
 
 func TestValidOp(t *testing.T) {
-	good := []string{"a", "status", "a1", "a-b-c", strings.Repeat("a", 64)}
-	bad := []string{"", "1a", "-a", "A", "a_b", "a b", "a.b", "a\n", strings.Repeat("a", 65), "ä"}
+	good := []string{"a", "status", "a1", "a-b-c", "a.b", "project.add", "a-1.b-2.c", strings.Repeat("a", 64)}
+	bad := []string{"", "1a", "-a", "A", "a_b", "a b", "a\n", strings.Repeat("a", 65), "ä",
+		".a", "a.", "a..b", "a.1b", "a.-b", "a.B", "project.add\n"}
 	for _, n := range good {
 		if !ValidOp(n) {
 			t.Errorf("%q should be valid", n)

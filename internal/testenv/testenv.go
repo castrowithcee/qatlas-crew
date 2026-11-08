@@ -31,8 +31,8 @@ type Env struct {
 }
 
 // Setup creates the directories under t.TempDir and points HOME, XDG_*, TMPDIR and the locale, color, terminal
-// and time zone variables at them for the duration of the test. It uses t.Setenv, so it cannot be combined
-// with t.Parallel.
+// and time zone variables at them for the duration of the test, and clears QCREW_CONFIG and QCREW_DIR. It uses
+// t.Setenv, so it cannot be combined with t.Parallel.
 func Setup(t testing.TB) *Env {
 	t.Helper()
 	root := t.TempDir()
@@ -57,6 +57,11 @@ func Setup(t testing.TB) *Env {
 	}
 	for _, kv := range e.vars() {
 		t.Setenv(kv[0], kv[1])
+	}
+	// The variables that point qcrew at another configuration must not reach a test from the real
+	// environment; empty counts as unset.
+	for _, name := range []string{"QCREW_CONFIG", "QCREW_DIR"} {
+		t.Setenv(name, "")
 	}
 	return e
 }

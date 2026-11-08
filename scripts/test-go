@@ -27,7 +27,7 @@ ext) tags=ext ;;
 snap)
 	tags=e2e
 	# Only packages with tests define the -update flag; go test fails on the others.
-	pkgs=$(go list -tags e2e -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./internal/tui/...)
+	pkgs=$(go list -tags e2e -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./internal/tui/... ./internal/cli/...)
 	if [ -z "$pkgs" ]; then
 		echo "snap-update: no golden tests yet"
 		exit 0
@@ -54,8 +54,11 @@ fi
 
 # -v only feeds the slowest-tests summary of scripts/test-run.
 [ -z "${TEST_SLOW:-}" ] || flags="$flags -v"
-[ "$mode" != snap ] || flags="$flags -update"
+# -update goes after the packages: go test passes an unknown flag there to the test binary, while before
+# them it ends the package list.
+update=
+[ "$mode" != snap ] || update=-update
 [ -z "$run" ] || flags="$flags -run=$run"
 
 # shellcheck disable=SC2086
-exec go test -count=1 -p "${TEST_JOBS:-2}" ${tags:+-tags "$tags"} $flags $pkgs
+exec go test -count=1 -p "${TEST_JOBS:-2}" ${tags:+-tags "$tags"} $flags $pkgs $update
