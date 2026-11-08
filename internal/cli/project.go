@@ -93,6 +93,8 @@ func projectFailure(err error) error {
 			failure.NextStep = "Run 'qcrew project list' to see the ids and names of the projects."
 		case output.CodeInvalidRequest:
 			failure.NextStep = "Give an existing directory, or add --create to make it; give a name with --name."
+		case client.CodeInUse:
+			failure.NextStep = "Run 'qcrew session list' and end each running session of the project with 'qcrew session stop <id> --confirm'."
 		}
 	}
 	return serviceFailure(err)

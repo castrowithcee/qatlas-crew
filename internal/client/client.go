@@ -157,6 +157,37 @@ func (c *Client) RemoveProject(ctx context.Context, ref string) (control.Project
 	return p, err
 }
 
+// StartSession starts an agent session in a project.
+func (c *Client) StartSession(ctx context.Context, args control.SessionStartArgs) (control.Session, error) {
+	var x control.Session
+	err := c.callInto(ctx, control.OpSessionStart, args, &x)
+	return x, err
+}
+
+// Sessions returns the sessions of the project whose id or name is project, or of every project if it is
+// empty.
+func (c *Client) Sessions(ctx context.Context, project string) ([]control.Session, error) {
+	var res control.SessionListResult
+	if err := c.callInto(ctx, control.OpSessionList, control.SessionListArgs{Project: project}, &res); err != nil {
+		return nil, err
+	}
+	return res.Sessions, nil
+}
+
+// StopSession ends a session and closes its window.
+func (c *Client) StopSession(ctx context.Context, id string) (control.Session, error) {
+	var x control.Session
+	err := c.callInto(ctx, control.OpSessionStop, control.SessionRefArgs{ID: id}, &x)
+	return x, err
+}
+
+// CaptureSession returns the last lines of a session's screen.
+func (c *Client) CaptureSession(ctx context.Context, id string, lines int) (control.SessionCaptureResult, error) {
+	var res control.SessionCaptureResult
+	err := c.callInto(ctx, control.OpSessionCapture, control.SessionCaptureArgs{ID: id, Lines: lines}, &res)
+	return res, err
+}
+
 func (c *Client) callInto(ctx context.Context, op string, args, result any) error {
 	raw, err := c.Call(ctx, op, args)
 	if err != nil {
@@ -174,12 +205,21 @@ const CodeAlreadyExists output.Code = "already-exists"
 // CodeConflict is the shared error code of a change that lost against another change made meanwhile.
 const CodeConflict output.Code = "conflict"
 
+// The shared error codes of a removal that running sessions block, and of a missing program.
+const (
+	CodeInUse             output.Code = "in-use"
+	CodeDependencyMissing output.Code = "dependency-missing"
+	CodeToolMissing       output.Code = "tool-missing"
+)
+
 // failureKind is how a code of the service appears on the command line. A refused request of the user is a
 // usage error with exit code 2, and its message is the service's own; a fault keeps the prefix that marks
-// the message as an answer of another process.
+// the message as an answer of another process, unless plain says the message describes the host, not the
+// service.
 type failureKind struct {
 	code    output.Code
 	refusal bool
+	plain   bool
 	next    string
 }
 
@@ -198,6 +238,10 @@ var codes = map[string]failureKind{
 	control.CodeConfigInvalid: {code: output.CodeConfigInvalid,
 		next: "Correct the configuration file by hand, or restore a copy from the backups directory beside it."},
 	control.CodeConflict: {code: CodeConflict, next: "Repeat the request."},
+	control.CodeInUse:    {code: CodeInUse, refusal: true, next: "Stop what still uses it and repeat the request."},
+	control.CodeDependencyMissing: {code: CodeDependencyMissing, plain: true,
+		next: "Run 'qcrew setup' to install what qcrew needs."},
+	control.CodeToolMissing: {code: CodeToolMissing, plain: true, next: "Run 'qcrew setup' to install the tool."},
 }
 
 // Failure turns the code and message of a failed answer into a diagnostic. The answer is data of another
@@ -219,7 +263,7 @@ func Failure(code, message string) *cli.Failure {
 	switch {
 	case strings.TrimSpace(message) == "":
 		message = "the service reported an error"
-	case !kind.refusal:
+	case !kind.refusal && !kind.plain:
 		message = "the service answered: " + message
 	}
 	return &cli.Failure{Code: kind.code, Message: message, NextStep: kind.next, Usage: kind.refusal}

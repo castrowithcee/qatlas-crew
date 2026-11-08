@@ -11,6 +11,7 @@ func All() []helptopics.Topic {
 		{Name: "qcrew", Short: "What qcrew is and what it is for", Text: overview},
 		{Name: "service-guide", Short: "The background service and how to control it", Text: serviceTopic},
 		{Name: "project-guide", Short: "Projects and the configuration file that lists them", Text: projectTopic},
+		{Name: "session-guide", Short: "Agent sessions in tmux and how to reach them", Text: sessionTopic},
 	}
 }
 
@@ -20,6 +21,7 @@ Commands:
 - qcrew version: print the version
 - qcrew service start|stop|status: control the background service, see the service-guide topic
 - qcrew project add|list|remove: register the directories qcrew works in, see the project-guide topic
+- qcrew session start|list|stop|attach: run agent tools in the projects, see the session-guide topic
 - qcrew self-update [version], qcrew self-update status: update qcrew itself to the latest stable release or to a given newer one from its signed GitHub releases; status shows the installed version and the latest release and changes nothing (updating needs --confirm)
 - qcrew help <topic>: show a help topic`
 
@@ -41,10 +43,26 @@ const projectTopic = `A project is a directory qcrew works in, registered by its
 Commands:
 - qcrew project add <path> [--name N] [--create]: register a directory; a relative path counts from the current directory, and symbolic links are resolved; the name defaults to the directory's base name; --create makes a missing directory; a directory or name that is registered already fails with already-exists and exit code 2
 - qcrew project list: show id, name and path of every project (--output table, json or compact)
-- qcrew project remove <id|name> --confirm: remove a project from the list; its directory stays as it is
+- qcrew project remove <id|name> --confirm: remove a project from the list; its directory stays as it is; it fails with in-use while sessions of the project run
 
 Every project has a random id of 12 characters that never changes; ids and names are unique, and a command accepts either.
 
 The list lives in config.yaml in ~/.qatlas/qcrew. Give another file with --config or QCREW_CONFIG, or another directory with QCREW_DIR. The file is YAML and may be edited by hand: it starts with schema: 1, followed by projects, a list of entries with id, name, path and added_at. A key qcrew does not know, or another schema version, is an error rather than being ignored.
 
 The qcrew service is the only program that writes the file; the project commands ask it and start it on demand. It writes under a lock, keeps the file private to your user (mode 0600), and saves the replaced version in backups/ beside the file first. If you edit the file while the service saves it, the save fails with conflict and nothing is written; repeat the command. One service serves one configuration file: a command that names another file while the service runs fails with config-mismatch until you stop the service.`
+
+const sessionTopic = `An agent session runs a tool in the directory of a project: claude (Claude Code), codex (Codex) or shell (your login shell). Sessions run in tmux, on a tmux server of qcrew's own named qcrew, so they keep running when the service stops or the terminal closes, and your own tmux server is never touched.
+
+Commands:
+- qcrew session start --project P --tool T [--title X]: start a session in the project with the id or name P; the title defaults to the tool
+- qcrew session list [--project P]: show id, project, tool, title, status and started_at of the sessions (--output table, json or compact)
+- qcrew session stop <id> --confirm: end the session and close its window
+- qcrew session attach <id>: print the tmux command that shows the session, and run it at a terminal; detach with the tmux prefix key and d, and the session keeps running
+
+The status is running while the tool runs and exited after it ended; an exited session keeps its window, with the last output, until it is stopped.
+
+Each project has one tmux session named p-<project id>, and each agent session is a window in it named s-<session id>. You may attach with tmux -L qcrew attach yourself and use tmux as usual.
+
+Errors: dependency-missing when tmux is not installed and tool-missing when the tool is not in PATH; run qcrew setup. A project with running sessions cannot be removed (in-use).
+
+QCREW_TMUX_SOCKET, an absolute path, moves qcrew to the tmux server at that socket instead; set it alike for the service and the commands.`

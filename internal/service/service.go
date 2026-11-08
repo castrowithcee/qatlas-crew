@@ -19,6 +19,7 @@ import (
 
 	"github.com/castrowithcee/qatlas-crew/internal/control"
 	"github.com/castrowithcee/qatlas-crew/internal/project"
+	"github.com/castrowithcee/qatlas-crew/internal/session"
 )
 
 // ErrRunning means another service already listens on the channel.
@@ -59,6 +60,8 @@ type Options struct {
 	programReplaced func() (string, bool, error)
 	watchEvery      time.Duration
 	logMax          int64
+	// tmux replaces the tmux server that QCREW_TMUX_SOCKET selects.
+	tmux *session.Server
 }
 
 // handler answers one operation with its arguments, which may be empty. A *control.Error answers with its
@@ -71,9 +74,13 @@ type server struct {
 	version  string
 	ops      map[string]handler
 	projects *project.Registry
-	cancel   context.CancelFunc
-	replaced func() (string, bool, error)
-	every    time.Duration
+	sessions *session.Manager
+	mirror   mirror
+	// lifecycle orders the starting of sessions against the removal of projects.
+	lifecycle sync.Mutex
+	cancel    context.CancelFunc
+	replaced  func() (string, bool, error)
+	every     time.Duration
 
 	mu    sync.Mutex
 	conns map[net.Conn]struct{}
@@ -98,6 +105,12 @@ func Run(ctx context.Context, opts Options) error {
 	projects, err := project.NewRegistry(configPath)
 	if err != nil {
 		return fmt.Errorf("open the configuration %s: %w", configPath, err)
+	}
+	var tmuxServer session.Server
+	if opts.tmux != nil {
+		tmuxServer = *opts.tmux
+	} else if tmuxServer, err = session.ServerFromEnv(os.Getenv); err != nil {
+		return err
 	}
 	// No Harden: on Linux it hides the program file from the clients, whose check of the service then fails
 	// closed. The service holds no secret yet; hardening comes with a challenge that replaces that check.
@@ -130,7 +143,7 @@ func Run(ctx context.Context, opts Options) error {
 	s := &server{
 		log: slog.New(slog.NewTextHandler(logw, nil)), started: time.Now().UTC(), version: opts.Version,
 		cancel: cancel, replaced: opts.programReplaced, every: opts.watchEvery, conns: map[net.Conn]struct{}{},
-		projects: projects,
+		projects: projects, sessions: session.New(tmuxServer),
 	}
 	if s.replaced == nil {
 		s.replaced = localipc.ProgramReplaced
@@ -147,6 +160,7 @@ func Run(ctx context.Context, opts Options) error {
 		},
 	}
 	s.addProjectOps()
+	s.addSessionOps()
 
 	s.log.Info("service started", "pid", os.Getpid(), "version", s.version, "config", s.projects.Path())
 	if opts.Ready != nil {
@@ -157,6 +171,7 @@ func Run(ctx context.Context, opts Options) error {
 		closeListener() // unblocks Accept
 	}()
 	go s.watch(ctx)
+	go s.refreshLoop(ctx)
 
 	err = s.accept(ctx, listener)
 	cancel()

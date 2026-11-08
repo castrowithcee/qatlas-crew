@@ -1,0 +1,1 @@
+[{"id":"aaaaaaaaaaa2","project":"abcdefghijk2","tool":"claude","title":"claude","status":"running","started_at":"2026-01-02T03:04:05Z"},{"id":"bbbbbbbbbbb3","project":"mnopqrstuvw7","tool":"shell","title":"build log","status":"exited","started_at":"2026-02-03T04:05:06Z"}]
