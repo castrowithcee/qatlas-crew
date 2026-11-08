@@ -43,7 +43,11 @@ func newRoot() (*cobracli.Program, error) {
 	if err != nil {
 		return nil, err
 	}
-	root.AddCommand(newVersionCommand(program), newSelfUpdateCommand(program), newManpageCommand(program))
+	access := defaultServiceAccess()
+	root.PersistentFlags().BoolVar(&access.noAutostart, "no-autostart", false,
+		"fail instead of starting the qcrew service when a command needs it and it is not running")
+	root.AddCommand(newVersionCommand(program), newSelfUpdateCommand(program), newManpageCommand(program),
+		newServiceCommand(program, access))
 	return program, nil
 }
 

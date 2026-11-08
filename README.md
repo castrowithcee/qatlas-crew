@@ -26,7 +26,22 @@ release exists.
 ```sh
 qcrew help           # overview and help topics
 qcrew version        # print the version
+qcrew service start  # start the background service
+qcrew service status # show whether it runs (--output json for scripts)
+qcrew service stop   # stop it
 ```
+
+## Service
+
+qcrew keeps one background service per user and host. It runs detached from the terminal in your user
+context (it is not a system service) and keeps running until `qcrew service stop`. `qcrew service start`
+waits until it is ready and prints its process id; a second start fails with `already-running`.
+`qcrew service status --output json` reports `running`, `pid` and `version`, and never starts the service.
+Commands that need the service start it on demand; `--no-autostart` makes them fail instead.
+
+The service listens on a local socket in your runtime directory that only processes of your own user running
+the same qcrew program file can use. After `qcrew self-update` the old service ends by itself; start it
+again. Its log is `~/.qatlas/qcrew/logs/service.log`, rotated to `service.log.1` above 1 MiB.
 
 ## Build from source
 
