@@ -29,6 +29,8 @@ qcrew version        # print the version
 qcrew service start  # start the background service
 qcrew service status # show whether it runs (--output json for scripts)
 qcrew service stop   # stop it
+qcrew project add .  # register the current directory as a project
+qcrew project list   # list the projects (--output json for scripts)
 ```
 
 ## Service
@@ -42,6 +44,18 @@ Commands that need the service start it on demand; `--no-autostart` makes them f
 The service listens on a local socket in your runtime directory that only processes of your own user running
 the same qcrew program file can use. After `qcrew self-update` the old service ends by itself; start it
 again. Its log is `~/.qatlas/qcrew/logs/service.log`, rotated to `service.log.1` above 1 MiB.
+
+## Projects
+
+A project is a directory registered by its path: `qcrew project add <path> [--name N]` stores it with symbolic
+links resolved, under a random 12-character id and a unique name (by default the directory's base name).
+`--create` makes a missing directory. `qcrew project remove <id|name> --confirm` takes it off the list and
+deletes nothing. qcrew requires nothing inside the directory, neither Git nor any other file.
+
+The list lives in `~/.qatlas/qcrew/config.yaml`; `--config`, `QCREW_CONFIG` or `QCREW_DIR` choose another file.
+It is plain YAML for editing by hand and read strictly: unknown keys and other schema versions are errors.
+The qcrew service is its only writer; it locks the file, keeps it private to your user and saves the replaced
+version in `backups/` beside it first. `qcrew help project-guide` describes the format.
 
 ## Build from source
 

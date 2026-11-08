@@ -127,21 +127,85 @@ func (c *Client) Stop(ctx context.Context) error {
 	return err
 }
 
+// Projects returns the registered projects.
+func (c *Client) Projects(ctx context.Context) ([]control.Project, error) {
+	var res control.ProjectListResult
+	if err := c.callInto(ctx, control.OpProjectList, nil, &res); err != nil {
+		return nil, err
+	}
+	return res.Projects, nil
+}
+
+// Project returns the project whose id or name is ref.
+func (c *Client) Project(ctx context.Context, ref string) (control.Project, error) {
+	var p control.Project
+	err := c.callInto(ctx, control.OpProjectGet, control.ProjectRefArgs{Ref: ref}, &p)
+	return p, err
+}
+
+// AddProject registers a directory as a project.
+func (c *Client) AddProject(ctx context.Context, args control.ProjectAddArgs) (control.Project, error) {
+	var p control.Project
+	err := c.callInto(ctx, control.OpProjectAdd, args, &p)
+	return p, err
+}
+
+// RemoveProject unregisters the project whose id or name is ref and returns it.
+func (c *Client) RemoveProject(ctx context.Context, ref string) (control.Project, error) {
+	var p control.Project
+	err := c.callInto(ctx, control.OpProjectRemove, control.ProjectRefArgs{Ref: ref}, &p)
+	return p, err
+}
+
+func (c *Client) callInto(ctx context.Context, op string, args, result any) error {
+	raw, err := c.Call(ctx, op, args)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(raw, result); err != nil {
+		return fmt.Errorf("the answer to %s is malformed", op)
+	}
+	return nil
+}
+
+// CodeAlreadyExists is the shared error code of a request for something that exists already.
+const CodeAlreadyExists output.Code = "already-exists"
+
+// CodeConflict is the shared error code of a change that lost against another change made meanwhile.
+const CodeConflict output.Code = "conflict"
+
+// failureKind is how a code of the service appears on the command line. A refused request of the user is a
+// usage error with exit code 2, and its message is the service's own; a fault keeps the prefix that marks
+// the message as an answer of another process.
+type failureKind struct {
+	code    output.Code
+	refusal bool
+	next    string
+}
+
+const statusNextStep = "Run 'qcrew service status'; if the problem stays, run 'qcrew service stop' and start the service again."
+
 // codes maps the codes of the service to the shared error codes; a code of the service that is not listed
 // is a runtime error of the service.
-var codes = map[string]output.Code{
-	control.CodeInvalidRequest:     output.CodeInvalidRequest,
-	control.CodeUnsupportedVersion: output.CodeInvalidRequest,
-	control.CodeUnknownOperation:   output.CodeNotFound,
-	control.CodeRuntime:            output.CodeRuntime,
+var codes = map[string]failureKind{
+	control.CodeInvalidRequest:     {code: output.CodeInvalidRequest, next: statusNextStep},
+	control.CodeUnsupportedVersion: {code: output.CodeInvalidRequest, next: statusNextStep},
+	control.CodeUnknownOperation:   {code: output.CodeNotFound, next: statusNextStep},
+	control.CodeRuntime:            {code: output.CodeRuntime, next: statusNextStep},
+	control.CodeInvalidArgument:    {code: output.CodeInvalidRequest, refusal: true, next: "Correct the request and repeat it."},
+	control.CodeAlreadyExists:      {code: CodeAlreadyExists, refusal: true, next: "Choose another value and repeat the request."},
+	control.CodeNotFound:           {code: output.CodeNotFound, refusal: true, next: "Check the name and repeat the request."},
+	control.CodeConfigInvalid: {code: output.CodeConfigInvalid,
+		next: "Correct the configuration file by hand, or restore a copy from the backups directory beside it."},
+	control.CodeConflict: {code: CodeConflict, next: "Repeat the request."},
 }
 
 // Failure turns the code and message of a failed answer into a diagnostic. The answer is data of another
 // process: its message is cut and stripped of control characters, and its code only selects from a fixed set.
 func Failure(code, message string) *cli.Failure {
-	mapped, ok := codes[code]
+	kind, ok := codes[code]
 	if !ok {
-		mapped = output.CodeRuntime
+		kind = failureKind{code: output.CodeRuntime, next: statusNextStep}
 	}
 	message = strings.Map(func(r rune) rune {
 		if unicode.IsControl(r) {
@@ -152,14 +216,11 @@ func Failure(code, message string) *cli.Failure {
 	if len(message) > 200 {
 		message = strings.ToValidUTF8(message[:200], "")
 	}
-	if strings.TrimSpace(message) == "" {
+	switch {
+	case strings.TrimSpace(message) == "":
 		message = "the service reported an error"
-	} else {
+	case !kind.refusal:
 		message = "the service answered: " + message
 	}
-	return &cli.Failure{
-		Code:     mapped,
-		Message:  message,
-		NextStep: "Run 'qcrew service status'; if the problem stays, run 'qcrew service stop' and start the service again.",
-	}
+	return &cli.Failure{Code: kind.code, Message: message, NextStep: kind.next, Usage: kind.refusal}
 }

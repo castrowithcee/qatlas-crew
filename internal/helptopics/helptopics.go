@@ -10,6 +10,7 @@ func All() []helptopics.Topic {
 	return []helptopics.Topic{
 		{Name: "qcrew", Short: "What qcrew is and what it is for", Text: overview},
 		{Name: "service-guide", Short: "The background service and how to control it", Text: serviceTopic},
+		{Name: "project-guide", Short: "Projects and the configuration file that lists them", Text: projectTopic},
 	}
 }
 
@@ -18,6 +19,7 @@ const overview = `qcrew is a program with a terminal interface for working with 
 Commands:
 - qcrew version: print the version
 - qcrew service start|stop|status: control the background service, see the service-guide topic
+- qcrew project add|list|remove: register the directories qcrew works in, see the project-guide topic
 - qcrew self-update [version], qcrew self-update status: update qcrew itself to the latest stable release or to a given newer one from its signed GitHub releases; status shows the installed version and the latest release and changes nothing (updating needs --confirm)
 - qcrew help <topic>: show a help topic`
 
@@ -33,3 +35,16 @@ Commands that need the service start it on demand. Give --no-autostart to make t
 The service answers only processes of your own user that run the same qcrew program file. When qcrew is updated, the old service ends by itself; start it again with qcrew service start.
 
 Files, below ~/.qatlas/qcrew: logs/service.log with one older file service.log.1 after it grew beyond 1 MiB. The control socket lives in the runtime directory of your user (XDG_RUNTIME_DIR), or in run/ below the qcrew directory if there is none.`
+
+const projectTopic = `A project is a directory qcrew works in, registered by its path. qcrew requires nothing inside it and changes nothing there.
+
+Commands:
+- qcrew project add <path> [--name N] [--create]: register a directory; a relative path counts from the current directory, and symbolic links are resolved; the name defaults to the directory's base name; --create makes a missing directory; a directory or name that is registered already fails with already-exists and exit code 2
+- qcrew project list: show id, name and path of every project (--output table, json or compact)
+- qcrew project remove <id|name> --confirm: remove a project from the list; its directory stays as it is
+
+Every project has a random id of 12 characters that never changes; ids and names are unique, and a command accepts either.
+
+The list lives in config.yaml in ~/.qatlas/qcrew. Give another file with --config or QCREW_CONFIG, or another directory with QCREW_DIR. The file is YAML and may be edited by hand: it starts with schema: 1, followed by projects, a list of entries with id, name, path and added_at. A key qcrew does not know, or another schema version, is an error rather than being ignored.
+
+The qcrew service is the only program that writes the file; the project commands ask it and start it on demand. It writes under a lock, keeps the file private to your user (mode 0600), and saves the replaced version in backups/ beside the file first. If you edit the file while the service saves it, the save fails with conflict and nothing is written; repeat the command. One service serves one configuration file: a command that names another file while the service runs fails with config-mismatch until you stop the service.`

@@ -38,11 +38,19 @@ func FallbackDir(home string) string { return filepath.Join(DataDir(home), "run"
 // LogDir is the directory of the service log.
 func LogDir(home string) string { return filepath.Join(DataDir(home), "logs") }
 
+// ConfigFile is the name of the configuration file in the data directory.
+const ConfigFile = "config.yaml"
+
 // The operations of the service.
 const (
 	OpStatus = "status"
 	OpPing   = "ping"
 	OpStop   = "stop"
+
+	OpProjectAdd    = "project.add"
+	OpProjectList   = "project.list"
+	OpProjectGet    = "project.get"
+	OpProjectRemove = "project.remove"
 )
 
 // The codes of a failed answer. They are fixed words, never text built from a request.
@@ -51,12 +59,21 @@ const (
 	CodeUnsupportedVersion = "unsupported-version"
 	CodeUnknownOperation   = "unknown-operation"
 	CodeRuntime            = "runtime"
+	// CodeInvalidArgument refuses a well-formed request whose values the operation cannot accept.
+	CodeInvalidArgument = "invalid-argument"
+	CodeAlreadyExists   = "already-exists"
+	CodeNotFound        = "not-found"
+	// CodeConfigInvalid means the configuration file cannot be read as it is, for example after a hand edit.
+	CodeConfigInvalid = "config-invalid"
+	// CodeConflict means the configuration file changed while the service saved it; nothing was written.
+	CodeConflict = "conflict"
 )
 
 // maxOpName keeps a name short enough to log and show.
 const maxOpName = 64
 
-var opName = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+// An operation name is one or more segments separated by dots, such as "status" or "project.add".
+var opName = regexp.MustCompile(`^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*$`)
 
 // ValidOp reports whether name is a well-formed operation name.
 func ValidOp(name string) bool { return len(name) <= maxOpName && opName.MatchString(name) }
@@ -93,6 +110,34 @@ type StatusResult struct {
 	Version   string    `json:"version"`
 	PID       int       `json:"pid"`
 	StartedAt time.Time `json:"started_at"`
+	// Config is the absolute path of the configuration file the service reads and writes.
+	Config string `json:"config,omitempty"`
+}
+
+// Project is a registered project as the channel carries it.
+type Project struct {
+	ID      string    `json:"id"`
+	Name    string    `json:"name"`
+	Path    string    `json:"path"`
+	AddedAt time.Time `json:"added_at"`
+}
+
+// ProjectAddArgs are the arguments of OpProjectAdd. Path must be absolute; an empty Name means the base name
+// of the path. Create makes the directory first if it is missing.
+type ProjectAddArgs struct {
+	Path   string `json:"path"`
+	Name   string `json:"name,omitempty"`
+	Create bool   `json:"create,omitempty"`
+}
+
+// ProjectRefArgs are the arguments of OpProjectGet and OpProjectRemove: the id or the name of a project.
+type ProjectRefArgs struct {
+	Ref string `json:"ref"`
+}
+
+// ProjectListResult answers OpProjectList.
+type ProjectListResult struct {
+	Projects []Project `json:"projects"`
 }
 
 func line(v any) ([]byte, error) {

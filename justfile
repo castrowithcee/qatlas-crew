@@ -25,6 +25,6 @@ test-e2e *args:
 test-ext *args:
     @TEST_NET=1 TEST_SLOW=5 {{run}} scripts/test-go ext "$@"
 
-# Rewrites the golden files of the terminal interface; review the diff like code.
+# Rewrites the golden files of the terminal interface and the command line output; review the diff like code.
 snap-update:
     @{{run}} scripts/test-go snap

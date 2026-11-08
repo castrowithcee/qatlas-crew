@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -38,15 +41,24 @@ var serviceCommand = func() background.Command {
 type serviceAccess struct {
 	// noAutostart makes connect fail instead of starting a service that is not running.
 	noAutostart bool
-	dial        func(ctx context.Context) (*client.Client, error)
-	start       func(ctx context.Context) (pid int, err error)
+	// configFlag is the value of --config.
+	configFlag string
+	dial       func(ctx context.Context) (*client.Client, error)
+	start      func(ctx context.Context) (pid int, err error)
 }
 
 func defaultServiceAccess() *serviceAccess {
-	return &serviceAccess{
-		dial:  func(ctx context.Context) (*client.Client, error) { return client.Dial(ctx, localipc.DialOptions{}) },
-		start: startService,
+	a := &serviceAccess{
+		dial: func(ctx context.Context) (*client.Client, error) { return client.Dial(ctx, localipc.DialOptions{}) },
 	}
+	a.start = func(ctx context.Context) (int, error) {
+		config, err := a.configPath()
+		if err != nil {
+			return 0, err
+		}
+		return startService(ctx, config)
+	}
+	return a
 }
 
 // connect returns a connection to the service. A service that is not running is started first, unless
@@ -99,10 +111,21 @@ func serviceFailure(err error) error {
 		NextStep: "Run 'qcrew service status'.", Cause: err}
 }
 
-// startService starts the service in the background and waits until it listens. It returns the process id
-// of the service, or an already-running failure (whose cause is errAlreadyRunning) if one runs.
-func startService(ctx context.Context) (int, error) {
-	res, err := background.Start(ctx, serviceCommand(), nil, background.Options{})
+// startService starts the service in the background on the configuration file config and waits until it
+// listens. It returns the process id of the service, or an already-running failure (whose cause is
+// errAlreadyRunning) if one runs.
+func startService(ctx context.Context, config string) (int, error) {
+	cmd := serviceCommand()
+	env := cmd.Env
+	if env == nil {
+		env = os.Environ()
+	}
+	// The resolved path travels as QCREW_CONFIG, so that --config and a relative path reach the service,
+	// which has no flags and works in another directory.
+	cmd.Env = append(slices.DeleteFunc(slices.Clone(env), func(kv string) bool {
+		return strings.HasPrefix(kv, configFileEnv+"=")
+	}), configFileEnv+"="+config)
+	res, err := background.Start(ctx, cmd, nil, background.Options{})
 	if err != nil {
 		var report *background.ReportError
 		if errors.As(err, &report) {
@@ -180,7 +203,7 @@ func newServiceCommand(program *cobracli.Program, access *serviceAccess) *cobra.
 			Use:    "run",
 			Short:  "Run the service in this process (started by 'service start')",
 			Hidden: true,
-			RunE:   func(c *cobra.Command, _ []string) error { return runServiceProcess(c) },
+			RunE:   func(c *cobra.Command, _ []string) error { return runServiceProcess(c, access) },
 		},
 	)
 	return cmd
@@ -228,14 +251,19 @@ func runServiceStop(c *cobra.Command, program *cobracli.Program, access *service
 
 // runServiceProcess is the hidden service run command: the body of the background process. It reports to
 // the starter once the service listens, or why it could not.
-func runServiceProcess(c *cobra.Command) error {
+func runServiceProcess(c *cobra.Command, access *serviceAccess) error {
 	child, ok := background.Inherit()
 	if !ok {
 		return &cli.Failure{Code: output.CodeUsage, Message: "service run is not meant to be started by hand",
 			NextStep: "Run 'qcrew service start'.", Usage: true}
 	}
 	defer child.Close()
-	err := service.Run(c.Context(), service.Options{Version: version, Ready: child.Ready})
+	config, err := access.configPath()
+	if err != nil {
+		child.Fail(err.Error())
+		return err
+	}
+	err = service.Run(c.Context(), service.Options{Version: version, Config: config, Ready: child.Ready})
 	switch {
 	case errors.Is(err, service.ErrRunning):
 		child.Running()
