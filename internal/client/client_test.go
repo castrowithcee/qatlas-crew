@@ -21,6 +21,9 @@ func TestFailureMapsCodes(t *testing.T) {
 		"not-found":           output.CodeNotFound,
 		"config-invalid":      output.CodeConfigInvalid,
 		"conflict":            CodeConflict,
+		"in-use":              CodeInUse,
+		"dependency-missing":  CodeDependencyMissing,
+		"tool-missing":        CodeToolMissing,
 		"something-new":       output.CodeRuntime,
 		"":                    output.CodeRuntime,
 	}
@@ -48,7 +51,8 @@ func TestFailureCleansMessage(t *testing.T) {
 func TestEveryServiceCodeIsMapped(t *testing.T) {
 	for _, code := range []string{control.CodeInvalidRequest, control.CodeUnsupportedVersion, control.CodeUnknownOperation,
 		control.CodeRuntime, control.CodeInvalidArgument, control.CodeAlreadyExists, control.CodeNotFound,
-		control.CodeConfigInvalid, control.CodeConflict} {
+		control.CodeConfigInvalid, control.CodeConflict, control.CodeInUse, control.CodeDependencyMissing,
+		control.CodeToolMissing} {
 		kind, ok := codes[code]
 		if !ok || !output.ValidCode(kind.code) || kind.next == "" {
 			t.Errorf("service code %q: %+v, mapped %v", code, kind, ok)
@@ -66,5 +70,10 @@ func TestFailureExitCodes(t *testing.T) {
 	fault := Failure(control.CodeConfigInvalid, "bad file")
 	if cli.ExitCode(fault) != cli.ExitRuntime || !strings.HasPrefix(fault.Message, "the service answered: ") {
 		t.Errorf("fault: exit %d, %+v", cli.ExitCode(fault), fault)
+	}
+	missing := Failure(control.CodeDependencyMissing, "tmux is not installed")
+	if cli.ExitCode(missing) != cli.ExitRuntime || missing.Message != "tmux is not installed" ||
+		!strings.Contains(missing.NextStep, "qcrew setup") {
+		t.Errorf("missing dependency: exit %d, %+v", cli.ExitCode(missing), missing)
 	}
 }

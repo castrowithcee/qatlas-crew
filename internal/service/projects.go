@@ -53,13 +53,25 @@ func (s *server) addProjectOps() {
 		s.log.Info("project added", "id", p.ID, "path", p.Path)
 		return wire(p), nil
 	}
-	s.ops[control.OpProjectRemove] = func(_ context.Context, args json.RawMessage) (any, error) {
+	s.ops[control.OpProjectRemove] = func(ctx context.Context, args json.RawMessage) (any, error) {
 		var a control.ProjectRefArgs
 		if err := decodeRef(args, &a); err != nil {
 			return nil, err
 		}
-		p, err := s.projects.Remove(a.Ref)
+		s.lifecycle.Lock()
+		defer s.lifecycle.Unlock()
+		p, err := s.projects.Get(a.Ref)
 		if err != nil {
+			return nil, projectError(err)
+		}
+		running, err := s.runningSessions(ctx, p.ID)
+		if err != nil {
+			return nil, sessionError(err)
+		}
+		if running > 0 {
+			return nil, inUse(p.Name, running)
+		}
+		if p, err = s.projects.Remove(p.ID); err != nil {
 			return nil, projectError(err)
 		}
 		s.log.Info("project removed", "id", p.ID, "path", p.Path)

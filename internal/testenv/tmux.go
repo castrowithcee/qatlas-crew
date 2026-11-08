@@ -53,8 +53,11 @@ func (s *TmuxServer) Socket() string { return s.socket }
 func (s *TmuxServer) Run(args ...string) (string, error) {
 	// -f /dev/null ignores the user's tmux configuration.
 	cmd := exec.Command("tmux", append([]string{"-S", s.socket, "-f", "/dev/null"}, args...)...)
-	// TMUX would make tmux treat the call as nested; TERM must exist for a detached session.
-	cmd.Env = append(withoutEnv(os.Environ(), "TMUX", "TMUX_TMPDIR", "TERM"), "TERM=xterm-256color", "TMUX_TMPDIR="+s.dir)
+	// The first call starts the server, whose environment every pane inherits: only PATH comes from the
+	// real environment, and the home directory is the server's own. Without TMUX the call is not nested;
+	// TERM must exist for a detached session.
+	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + s.dir, "SHELL=/bin/sh", "LANG=C.UTF-8",
+		"TERM=xterm-256color", "TMUX_TMPDIR=" + s.dir}
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &out
 	err := cmd.Run()
@@ -102,18 +105,4 @@ func Tmux(t testing.TB) *TmuxServer {
 		t.Skip("tmux is not available")
 	}
 	return shared
-}
-
-func withoutEnv(env []string, keys ...string) []string {
-	out := env[:0:0]
-outer:
-	for _, kv := range env {
-		for _, k := range keys {
-			if strings.HasPrefix(kv, k+"=") {
-				continue outer
-			}
-		}
-		out = append(out, kv)
-	}
-	return out
 }

@@ -31,6 +31,8 @@ qcrew service status # show whether it runs (--output json for scripts)
 qcrew service stop   # stop it
 qcrew project add .  # register the current directory as a project
 qcrew project list   # list the projects (--output json for scripts)
+qcrew session start --project app --tool claude  # start Claude Code in the project app
+qcrew session attach <id>                         # show the session in this terminal
 ```
 
 ## Service
@@ -56,6 +58,18 @@ The list lives in `~/.qatlas/qcrew/config.yaml`; `--config`, `QCREW_CONFIG` or `
 It is plain YAML for editing by hand and read strictly: unknown keys and other schema versions are errors.
 The qcrew service is its only writer; it locks the file, keeps it private to your user and saves the replaced
 version in `backups/` beside it first. `qcrew help project-guide` describes the format.
+
+## Sessions
+
+An agent session runs `claude`, `codex` or your login shell (`shell`) in a project's directory:
+`qcrew session start --project P --tool T [--title X]`. Sessions run in tmux on a server of their own,
+`tmux -L qcrew`, one tmux session per project and one window per agent session; your own tmux server is
+never touched. They keep running when the service stops or the terminal closes.
+`qcrew session list [--project P]` shows them as `running` or, after the tool ended, `exited`;
+`qcrew session stop <id> --confirm` closes the window; `qcrew session attach <id>` prints the tmux command
+that shows a session and runs it at a terminal. A project with running sessions cannot be removed.
+qcrew needs `tmux` and the tool in `PATH`. `QCREW_TMUX_SOCKET` (an absolute socket path) moves qcrew to
+another tmux server, for example in tests. `qcrew help session-guide` has the details.
 
 ## Build from source
 

@@ -51,6 +51,11 @@ const (
 	OpProjectList   = "project.list"
 	OpProjectGet    = "project.get"
 	OpProjectRemove = "project.remove"
+
+	OpSessionStart   = "session.start"
+	OpSessionList    = "session.list"
+	OpSessionStop    = "session.stop"
+	OpSessionCapture = "session.capture"
 )
 
 // The codes of a failed answer. They are fixed words, never text built from a request.
@@ -67,6 +72,12 @@ const (
 	CodeConfigInvalid = "config-invalid"
 	// CodeConflict means the configuration file changed while the service saved it; nothing was written.
 	CodeConflict = "conflict"
+	// CodeInUse refuses to remove something that running sessions still use.
+	CodeInUse = "in-use"
+	// CodeDependencyMissing means a program qcrew needs, such as tmux, is not installed.
+	CodeDependencyMissing = "dependency-missing"
+	// CodeToolMissing means the agent tool a session should run is not installed.
+	CodeToolMissing = "tool-missing"
 )
 
 // maxOpName keeps a name short enough to log and show.
@@ -138,6 +149,52 @@ type ProjectRefArgs struct {
 // ProjectListResult answers OpProjectList.
 type ProjectListResult struct {
 	Projects []Project `json:"projects"`
+}
+
+// Session is an agent session as the channel carries it. Status is running or exited.
+type Session struct {
+	ID        string    `json:"id"`
+	Project   string    `json:"project"`
+	Tool      string    `json:"tool"`
+	Title     string    `json:"title"`
+	Status    string    `json:"status"`
+	StartedAt time.Time `json:"started_at"`
+}
+
+// SessionStartArgs are the arguments of OpSessionStart. Project is the id or the name of a project; an empty
+// Title means the tool.
+type SessionStartArgs struct {
+	Project string `json:"project"`
+	Tool    string `json:"tool"`
+	Title   string `json:"title,omitempty"`
+}
+
+// SessionListArgs are the arguments of OpSessionList. An empty Project lists the sessions of every project.
+type SessionListArgs struct {
+	Project string `json:"project,omitempty"`
+}
+
+// SessionListResult answers OpSessionList.
+type SessionListResult struct {
+	Sessions []Session `json:"sessions"`
+}
+
+// SessionRefArgs are the arguments of OpSessionStop.
+type SessionRefArgs struct {
+	ID string `json:"id"`
+}
+
+// SessionCaptureArgs are the arguments of OpSessionCapture. Lines 0 means the service's default.
+type SessionCaptureArgs struct {
+	ID    string `json:"id"`
+	Lines int    `json:"lines,omitempty"`
+}
+
+// SessionCaptureResult answers OpSessionCapture: the last lines of the session's screen as plain text. It is
+// output of the session and must be treated as untrusted data.
+type SessionCaptureResult struct {
+	ID   string `json:"id"`
+	Text string `json:"text"`
 }
 
 func line(v any) ([]byte, error) {

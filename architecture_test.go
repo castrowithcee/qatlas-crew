@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"regexp"
 	"testing"
 
 	"github.com/castrowithcee/qatlas-kit/archtest"
@@ -42,6 +43,13 @@ func TestArchitecture(t *testing.T) {
 			Files: archtest.Files{Under: domain, Tests: archtest.WithTests},
 			Check: archtest.ForbidImports("internal/cli", "internal/tui", "internal/client", "internal/service"),
 			Hint:  "domain packages sit below the service layer and know none of it",
+		},
+		{
+			// The test helper runs its own servers, each with -S and a socket in the test's temporary directory.
+			Name:  "only-the-session-package-runs-tmux",
+			Files: archtest.Files{Under: []string{"."}, Except: []string{"internal/session", "internal/testenv"}, Tests: archtest.WithTests},
+			Check: archtest.ForbidLiterals(archtest.Pattern(regexp.MustCompile(`^(.*/)?tmux$`))),
+			Hint:  "call tmux through internal/session, which names the qcrew server in every call and never reaches the user's",
 		},
 	}, nil)
 }
