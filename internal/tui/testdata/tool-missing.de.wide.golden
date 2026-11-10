@@ -1,7 +1,7 @@
 qcrew                                                                                                          [?] Hilfe
   [1 Projekte]  2 Postfach   3 Sessions   4 Einstellungen   5 Setup                                                     
 ------------------------------------------------------------------------------------------------------------------------
-> Projekte  [ + Projekt ] [ entfernen ]  |   Sessions von alpha                   [ claude ] [ codex: setup ] [ shell ] 
+> Projekte  [ + Projekt ] [ entfernen ]  |   Sessions von alpha            [ claude: setup ] [ codex: setup ] [ shell ] 
   PROJEKT  POSTFACH                      |   TOOL    TITEL            STATUS  SEIT                                      
 > alpha           3                      | > claude  refactor parser  läuft     1m                                      
   beta            0                      |   codex   write docs       wartet    3h                                      
@@ -35,6 +35,6 @@ qcrew                                                                           
                                          |                                                                              
                                          |                                                                              
                                          |                                                                              
-Warnung: the tool codex is not installed or not in PATH: codex Nächster Schritt: 'qcrew setup' ausführen oder den       
-Bereich Einrichtung öffnen, um zu installieren, was qcrew braucht.                                                      
+                                         |                                                                              
+Warnung: codex ist nicht installiert. Nächster Schritt: im Bereich Setup oder mit 'qcrew setup' installieren.           
 enter Sessions  / Suchen  n Projekt anlegen  f Vollbild  r Neu laden  1-5 Bereich  q Beenden      up/down Auswählen  1/2

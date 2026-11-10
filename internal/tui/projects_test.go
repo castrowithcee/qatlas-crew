@@ -301,21 +301,81 @@ func TestAToolButtonStartsTheSession(t *testing.T) {
 	}
 }
 
-func TestAMissingToolNamesSetup(t *testing.T) {
-	b := demoBackend()
-	b.startErr = &cli.Failure{Code: client.CodeToolMissing, Message: "the tool codex is not installed or not in PATH: codex"}
+// startModel is a model that ran its start, which checks the programs once.
+func startModel(t *testing.T, b *fakeBackend) *Model {
+	t.Helper()
 	m := newTestModel(t, i18n.English, b, wideWidth, wideHeight)
+	drain(m, m.Init())
+	m.render()
+	return m
+}
+
+func TestTheCheckAtStartDisablesTheMissingTools(t *testing.T) {
+	b := demoBackend() // claude and codex are missing, tmux is there
+	m := startModel(t, b)
+	if b.setupReads != 1 {
+		t.Fatalf("checks at start = %d, want 1", b.setupReads)
+	}
+	contains(t, m, "[ claude: setup ]", "[ codex: setup ]", "[ shell ]")
+	send(m, "c")
+	x, y := cellOf(t, m, "[ codex: setup ]")
+	clickAt(m, x, y)
+	if _, _, started := b.calls(); len(started) != 0 {
+		t.Fatalf("a missing tool reached the service: %+v", started)
+	}
+	contains(t, m, "codex is not installed. Next step: install it in the Setup area or with 'qcrew setup'.")
+	send(m, "s")
+	if _, _, started := b.calls(); len(started) != 1 || started[0].Tool != "shell" {
+		t.Fatalf("the shell did not start: %+v", started)
+	}
+	// The periodic read does not check again; reading again with r does.
+	m.tick()
+	timersOf[m].fire(t, m)
+	if b.setupReads != 1 {
+		t.Fatalf("the periodic read checked the programs: %d", b.setupReads)
+	}
+	b.markInstalled("claude")
+	b.markInstalled("codex")
+	send(m, "r")
+	if b.setupReads != 2 {
+		t.Fatalf("reload did not check again: %d", b.setupReads)
+	}
+	lacks(t, m, ": setup ]")
+	send(m, "1", "c")
+	if _, _, started := b.calls(); len(started) != 2 || started[1].Tool != "claude" {
+		t.Fatalf("an installed tool did not start: %+v", started)
+	}
+}
+
+func TestToolsStayActiveWithoutACheck(t *testing.T) {
+	b := demoBackend()
+	b.setupErr = &cli.Failure{Code: "unknown-operation", Message: "unknown operation"}
+	m := startModel(t, b)
+	contains(t, m, "[ claude ]", "[ codex ]")
+	send(m, "c")
+	if _, _, started := b.calls(); len(started) != 1 {
+		t.Fatalf("a failed check disabled the tool: %+v", started)
+	}
+}
+
+func TestAFailedStartMarksTheToolMissing(t *testing.T) {
+	b := demoBackend()
+	for _, name := range []string{"claude", "codex"} {
+		b.markInstalled(name)
+	}
+	b.startErr = &cli.Failure{Code: client.CodeToolMissing, Message: "the tool codex is not installed or not in PATH: codex"}
+	m := startModel(t, b)
 	send(m, "x")
 	contains(t, m, "not installed", "qcrew setup", "[ codex: setup ]")
 	send(m, "x")
 	if _, _, started := b.calls(); len(started) != 1 {
 		t.Fatalf("a missing tool was asked for again: %+v", started)
 	}
-	contains(t, m, "codex is not installed. Next step: run 'qcrew setup'")
+	contains(t, m, "codex is not installed. Next step: install it in the Setup area")
 	b.startErr = nil
 	send(m, "r", "x")
 	if _, _, started := b.calls(); len(started) != 2 {
-		t.Fatalf("reading again did not try the tool again: %+v", started)
+		t.Fatalf("a new check did not make the tool active again: %+v", started)
 	}
 	lacks(t, m, "codex: setup")
 }

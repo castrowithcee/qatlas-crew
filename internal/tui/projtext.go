@@ -143,7 +143,7 @@ func projectTexts() i18n.Catalogs[kittui.TextID] {
 
 			textStartBusy:   "A session is being started; wait for it.",
 			textResultStart: "The session '%s' is started.",
-			textMissingTool: "%s is not installed. Next step: run 'qcrew setup' to install it.",
+			textMissingTool: "%s is not installed. Next step: install it in the Setup area or with 'qcrew setup'.",
 		},
 		i18n.German: {
 			textKeyAdd:    "Projekt anlegen",
@@ -206,7 +206,7 @@ func projectTexts() i18n.Catalogs[kittui.TextID] {
 
 			textStartBusy:   "Eine Session wird gerade gestartet; warte darauf.",
 			textResultStart: "Die Session '%s' ist gestartet.",
-			textMissingTool: "%s ist nicht installiert. Nächster Schritt: 'qcrew setup' ausführen, um es zu installieren.",
+			textMissingTool: "%s ist nicht installiert. Nächster Schritt: im Bereich Setup oder mit 'qcrew setup' installieren.",
 		},
 	}
 }

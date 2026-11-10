@@ -71,7 +71,9 @@ func newTUICommand(access *serviceAccess) *cobra.Command {
 			"n adds a project: type the path of a folder (~ is your home, tab completes, the list below shows its\n" +
 			"folders and .. goes up), then choose that folder or a new folder in it and the name. d removes the chosen\n" +
 			"project after asking; its folder stays. c, x and s start a Claude Code, Codex or shell session in the\n" +
-			"chosen project and mark it; e stops the session under the cursor after asking.\n\n" +
+			"chosen project and mark it; e stops the session under the cursor after asking. Which tools are installed\n" +
+			"is checked at start, on r and after an installation; a missing tool shows setup on its button and starts\n" +
+			"nothing.\n\n" +
 			"The mouse works too: click a tab, a button, a key in the header or footer, or a row, and turn the wheel.\n" +
 			"A click does what the key does, so a stop still asks first. With the mouse on, hold Shift to select text.\n\n" +
 			"It needs a terminal on both standard input and output, and starts the service when it is not running,\n" +

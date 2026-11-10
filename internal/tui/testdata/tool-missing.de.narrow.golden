@@ -9,7 +9,8 @@ qcrew                                              [?] Hilfe
                                                             
                                                             
                                                             
-  Sessions von alpha  [ claude ] [ codex: setup ] [ shell ] 
+                                                            
+  Sessions vo~ [ claude: setup ] [ codex: setup ] [ shell ] 
   TOOL    TITEL            STATUS  SEIT                     
 > claude  refactor parser  läuft     1m                     
   codex   write docs       wartet    3h                     
@@ -22,9 +23,8 @@ qcrew                                              [?] Hilfe
                                                             
                                                             
                                                             
-Warnung: the tool codex is not installed or not in PATH:    
-codex Nächster Schritt: 'qcrew setup' ausführen oder den    
-Bereich Einrichtung öffnen, um zu installieren, was qcrew   
-braucht.                                                    
+                                                            
+Warnung: codex ist nicht installiert. Nächster Schritt: im  
+Bereich Setup oder mit 'qcrew setup' installieren.          
 enter Sessions  / Suchen  n Projekt anlegen  f Vollbild     
 r Neu laden  1-5 Bereich  q Beenden   up/down Auswählen  1/2

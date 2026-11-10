@@ -4,10 +4,6 @@ package tui
 
 import (
 	"testing"
-
-	"github.com/castrowithcee/qatlas-kit/cli"
-
-	"github.com/castrowithcee/qatlas-crew/internal/client"
 )
 
 // The goldens of adding and removing projects and of a missing tool. Run `just snap-update` to rewrite them.
@@ -23,9 +19,8 @@ func TestGoldenProjectScreens(t *testing.T) {
 		{"add-new", nil, []func(*Model){keys("n"), typed("work/"), keys("enter", "right", "down"), typed("fresh")}},
 		{"add-error", nil, []func(*Model){keys("n", "backspace", "backspace"), typed("rel"), keys("f2")}},
 		{"remove", nil, []func(*Model){keys("d")}},
-		{"tool-missing", func(b *fakeBackend) {
-			b.startErr = &cli.Failure{Code: client.CodeToolMissing, Message: "the tool codex is not installed or not in PATH: codex"}
-		}, []func(*Model){keys("x")}},
+		// The check of the programs at start finds claude and codex missing.
+		{"tool-missing", nil, []func(*Model){func(m *Model) { drain(m, m.Init()) }, keys("x")}},
 	}
 	for _, s := range screens {
 		for lang, l := range goldenLangs {

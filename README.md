@@ -67,8 +67,9 @@ Sessions, Settings and Setup, which lists tmux, Claude Code and Codex (see [Setu
 Adding a project opens a folder picker: type a path (`~` is your home, `tab` completes a folder name), or
 choose from the list of the folders in it, where `..` goes up; then use that folder or a new folder in it,
 which qcrew creates, and give the name. A refusal stands in the dialog, and what you typed stays. The buttons
-above the lists add or remove a project and start a session; a tool that is not installed names
-`qcrew setup` on its button.
+above the lists add or remove a project and start a session. Which tools are installed is checked at start,
+on `r` and after an installation in the Setup area; a missing tool shows `setup` on its button and starts
+nothing.
 
 The mouse does what the keys do: click a tab, a button, a key shown in the header or footer, or a row, and use
 the wheel. With the mouse on, hold Shift to select text. Settings holds theme, language, start area, icons and

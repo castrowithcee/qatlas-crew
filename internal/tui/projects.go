@@ -448,8 +448,26 @@ func (m *Model) applyRemove(msg removeMsg) tea.Cmd {
 	return m.reload()
 }
 
-// startTool starts a session of tool in the chosen project. A tool the service found missing before is not
-// asked for again until the person reads the service again; its button names the next step.
+// toolAbsent reports whether tool is not installed: the last check of the programs says so, or, as a fallback,
+// a start failed with tool-missing since. Without a check, or after a failed one, every tool counts as there.
+func (m *Model) toolAbsent(tool string) bool {
+	if m.toolMissing[tool] {
+		return true
+	}
+	s := m.setup
+	if s == nil || !s.loaded || s.failure != "" {
+		return false
+	}
+	for _, d := range s.deps {
+		if d.Name == tool {
+			return !d.Installed
+		}
+	}
+	return false
+}
+
+// startTool starts a session of tool in the chosen project. A tool that is not installed is not asked for; the
+// person gets the next step instead, which its button names too.
 func (m *Model) startTool(tool string) tea.Cmd {
 	if m.area != areaProjects && m.area != areaSessions {
 		return nil
@@ -460,7 +478,7 @@ func (m *Model) startTool(tool string) tea.Cmd {
 	case !ok:
 		m.warn(t.Lookup(textSessionsNoProj))
 		return nil
-	case m.toolMissing[tool]:
+	case m.toolAbsent(tool):
 		m.warn(t.Lookup(textMissingTool, tool))
 		return nil
 	case m.starting:
@@ -531,7 +549,7 @@ func (m *Model) paneButtons(p pane) (labels []string, acts []kittui.ActionID) {
 		}
 		for _, ta := range toolActions {
 			label := ta.tool
-			if m.toolMissing[ta.tool] {
+			if m.toolAbsent(ta.tool) {
 				label = t.Lookup(textBtnToolMissing, ta.tool)
 			}
 			labels, acts = append(labels, label), append(acts, ta.act)
@@ -558,7 +576,8 @@ func (m *Model) paneHead(p pane, title string, tone kittui.TextStyle, width, x, 
 		return m.styles.Render(tone, kittui.Pad(kittui.Clip(title, width), width))
 	}
 	left := width - room
-	head := m.styles.Render(tone, kittui.Pad(kittui.Clip(title, left), left))
+	// A cut title ends in the ellipsis and keeps a gap to the first button.
+	head := m.styles.Render(tone, kittui.Pad(m.styles.Truncate(title, left-1), left))
 	bx := x + left
 	for i, b := range buttons {
 		w := ansi.StringWidth(b)

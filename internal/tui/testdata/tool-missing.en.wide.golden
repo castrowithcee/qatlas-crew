@@ -1,7 +1,7 @@
 qcrew                                                                                                           [?] help
   [1 Projects]  2 Inbox   3 Sessions   4 Settings   5 Setup                                                             
 ------------------------------------------------------------------------------------------------------------------------
-> Projects     [ + project ] [ remove ]  |   Sessions of alpha                    [ claude ] [ codex: setup ] [ shell ] 
+> Projects     [ + project ] [ remove ]  |   Sessions of alpha             [ claude: setup ] [ codex: setup ] [ shell ] 
   PROJECT  INBOX                         |   TOOL    TITLE            STATUS   SINCE                                    
 > alpha        3                         | > claude  refactor parser  running     1m                                    
   beta         0                         |   codex   write docs       waiting     3h                                    
@@ -35,6 +35,6 @@ qcrew                                                                           
                                          |                                                                              
                                          |                                                                              
                                          |                                                                              
-warning: the tool codex is not installed or not in PATH: codex Next step: run 'qcrew setup', or open the Setup area, to 
-install what qcrew needs.                                                                                               
+                                         |                                                                              
+warning: codex is not installed. Next step: install it in the Setup area or with 'qcrew setup'.                         
 enter sessions  / search  n add project  f full screen  r reload  1-5 area  q quit                   up/down choose  1/2

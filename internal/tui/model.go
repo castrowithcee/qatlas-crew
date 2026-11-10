@@ -259,7 +259,8 @@ func (m *Model) restyle() bool {
 }
 
 func (m *Model) Init() tea.Cmd {
-	cmds := []tea.Cmd{m.reload(), m.tick(), m.setupReload()}
+	// The programs are checked once at start, so the tool buttons know what is installed.
+	cmds := []tea.Cmd{m.reload(), m.tick(), m.checkSetup()}
 	if m.themes.AsksTerminalColors(m.theme, m.profile) {
 		cmds = append(cmds, tea.RequestForegroundColor, tea.RequestBackgroundColor)
 	}
@@ -296,6 +297,10 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		m.apply(msg)
 		return m.setupAfterRefresh()
 	case setupMsg:
+		if msg.err == nil {
+			// A check replaces what failed starts reported.
+			clear(m.toolMissing)
+		}
 		return m.applySetup(msg)
 	case installDoneMsg:
 		return m.installDone(msg)
@@ -560,7 +565,7 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 			return nil
 		case actReload:
 			clear(m.toolMissing)
-			return tea.Batch(m.reload(), m.setupReload())
+			return tea.Batch(m.reload(), m.checkSetup())
 		case actAdd:
 			return m.beginAdd()
 		case actRemove:
