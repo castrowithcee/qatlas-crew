@@ -32,6 +32,13 @@ type fakeBackend struct {
 	stopped  []string
 	reads    int
 	closed   bool
+	// What adding, removing and starting got, and the errors they answer with.
+	added     []control.ProjectAddArgs
+	addErr    error
+	removed   []string
+	removeErr error
+	started   []control.SessionStartArgs
+	startErr  error
 	// setup is what the service reports about the programs qcrew needs; setupErr fails the check.
 	setup      []control.SetupDependency
 	setupErr   error

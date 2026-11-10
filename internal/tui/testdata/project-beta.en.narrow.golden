@@ -1,7 +1,7 @@
 qcrew                                               [?] help
   [1 Projects]  2 Inbox   3 Sessions   4 Settings   5 Setup 
 ------------------------------------------------------------
-> Projects                                                  
+> Projects                         [ + project ] [ remove ] 
   PROJECT  INBOX                                            
   alpha        3                                            
 > beta         0                                            
@@ -11,7 +11,7 @@ qcrew                                               [?] help
                                                             
                                                             
                                                             
-  Sessions of beta                                          
+  Sessions of beta           [ claude ] [ codex ] [ shell ] 
   TOOL   TITLE           STATUS  SINCE                      
 > shell  build watcher   idle       5s                      
   codex  old experiment  exited     2d                      
@@ -26,5 +26,5 @@ qcrew                                               [?] help
                                                             
                                                             
                                                             
-enter sessions  / search  f full screen  r reload  1-5 area 
-q quit                                   up/down choose  2/2
+enter sessions  / search  n add project  f full screen      
+r reload  1-5 area  q quit               up/down choose  2/2

@@ -1,7 +1,7 @@
 qcrew                                              [?] Hilfe
   [1 Projekte] 2 Postfach 3 Sessions 4 Einstellungen 5 Setup
 ------------------------------------------------------------
-> Projekte                                                  
+> Projekte                      [ + Projekt ] [ entfernen ] 
   #= Hilfe ==============================================#  
 > | [qcrew]  service-guide   project-guide   session-gui |  
   |                                                      |  
@@ -11,7 +11,7 @@ qcrew                                              [?] Hilfe
   | several projects.                                    |  
   |                                                      |  
   | Commands:                                            |  
-  | - qcrew, qcrew tui: open the terminal interface (at  |  
+  | - qcrew, qcrew tui: open the terminal interface (at  |] 
   |   a terminal; without one qcrew shows this           |  
 > |   overview), see qcrew tui --help                    |  
   | - qcrew version: print the version                   |  
@@ -21,10 +21,10 @@ qcrew                                              [?] Hilfe
   |   directories qcrew works in, see the project-guide  |  
   |   topic                                              |  
   | - qcrew session start|list|stop|attach: run agent    |  
-  | Zeilen 1-16 von 57                                   |  
+  | Zeilen 1-16 von 58                                   |  
   |                                                      |  
   | left/right Thema  up/down Scrollen  esc/? Schließen  |  
   #======================================================#  
                                                             
-enter Sessions  / Suchen  f Vollbild  r Neu laden           
-1-5 Bereich  q Beenden                up/down Auswählen  1/2
+enter Sessions  / Suchen  n Projekt anlegen  f Vollbild     
+r Neu laden  1-5 Bereich  q Beenden   up/down Auswählen  1/2

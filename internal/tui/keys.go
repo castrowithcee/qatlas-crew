@@ -32,6 +32,13 @@ const (
 	actNext   kittui.ActionID = "next"
 	actPrev   kittui.ActionID = "prev"
 	actSave   kittui.ActionID = "save"
+	// actAdd opens the dialog that adds a project, actRemove asks to remove the chosen one.
+	actAdd    kittui.ActionID = "add"
+	actRemove kittui.ActionID = "remove"
+	// Each starts a session of its tool in the chosen project.
+	actClaude kittui.ActionID = "claude"
+	actCodex  kittui.ActionID = "codex"
+	actShell  kittui.ActionID = "shell"
 	// The answers of a question.
 	actYes kittui.ActionID = "yes"
 	actNo  kittui.ActionID = "no"
@@ -62,7 +69,12 @@ func keyTable() []kittui.Action {
 		act(actSearch, kittui.LevelMove, kittui.TextKeySearch, "/"),
 		act(actArea, kittui.LevelMove, textKeyArea, areaKeys...),
 		act(actFull, kittui.LevelLetter, textKeyFull, "f"),
-		act(actStop, kittui.LevelLetter, textKeyStop, "x"),
+		act(actStop, kittui.LevelLetter, textKeyStop, "e"),
+		act(actAdd, kittui.LevelLetter, textKeyAdd, "n"),
+		act(actRemove, kittui.LevelLetter, textKeyRemove, "d"),
+		act(actClaude, kittui.LevelLetter, textKeyClaude, "c"),
+		act(actCodex, kittui.LevelLetter, textKeyCodex, "x"),
+		act(actShell, kittui.LevelLetter, textKeyShell, "s"),
 		act(actInstall, kittui.LevelLetter, textKeyInstall, "i"),
 		act(actHooks, kittui.LevelLetter, textKeyHooks, "h"),
 		act(actToggle, kittui.LevelMove, kittui.TextKeyToggle, "space"),

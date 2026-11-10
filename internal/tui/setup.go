@@ -160,7 +160,7 @@ func (m *Model) setupReload() tea.Cmd {
 func (m *Model) setupEntered() tea.Cmd { return m.setupReload() }
 
 // checkSetup asks the service which programs are installed. The check starts programs to read their version,
-// so it runs when the area is shown, on reload and after an installation, not with the periodic read.
+// so it runs at start, when the area is shown, on reload and after an installation, not with the periodic read.
 func (m *Model) checkSetup() tea.Cmd {
 	s := m.setup
 	if s.checking {

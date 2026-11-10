@@ -70,6 +70,9 @@ func (m *Model) render() string {
 // workspace draws the content of the active area in width by height cells.
 func (m *Model) workspace(width, height int) string {
 	m.parts = nil
+	if m.add != nil {
+		return m.addView(width, height)
+	}
 	if m.area == areaSettings {
 		view, targets := m.set.form.View(m.styles, width, height)
 		m.parts = append(m.parts, mousePart{rect: kittui.Rect{Width: width, Height: height}, form: m.set.form, targets: targets})
@@ -126,10 +129,8 @@ func (m *Model) drawPane(p pane, width, height, x, y int) string {
 	} else {
 		title = "  " + title
 	}
-	head := m.styles.Render(tone, kittui.Pad(kittui.Clip(title, width), width))
 	// The title is a click target of its area, so the pane can be reached without a key.
-	m.parts = append(m.parts, mousePart{rect: kittui.Rect{X: x, Y: y, Width: width, Height: 1},
-		targets: []kittui.Target{{Rect: kittui.Rect{X: x, Y: y, Width: width, Height: 1}, Area: area}}})
+	head := m.paneHead(p, title, tone, width, x, y)
 	if height <= 1 {
 		return head
 	}

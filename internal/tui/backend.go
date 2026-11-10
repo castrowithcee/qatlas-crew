@@ -19,6 +19,9 @@ type Backend interface {
 	Projects(ctx context.Context) ([]control.Project, error)
 	Sessions(ctx context.Context, project string) ([]control.Session, error)
 	StopSession(ctx context.Context, id string) (control.Session, error)
+	AddProject(ctx context.Context, args control.ProjectAddArgs) (control.Project, error)
+	RemoveProject(ctx context.Context, ref string) (control.Project, error)
+	StartSession(ctx context.Context, args control.SessionStartArgs) (control.Session, error)
 	SetupCheck(ctx context.Context) ([]control.SetupDependency, error)
 	SetupIntegration(ctx context.Context, remove bool) (control.SetupIntegrationResult, error)
 }
@@ -55,6 +58,24 @@ func (s *serial) StopSession(ctx context.Context, id string) (control.Session, e
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.c.StopSession(ctx, id)
+}
+
+func (s *serial) AddProject(ctx context.Context, args control.ProjectAddArgs) (control.Project, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.c.AddProject(ctx, args)
+}
+
+func (s *serial) RemoveProject(ctx context.Context, ref string) (control.Project, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.c.RemoveProject(ctx, ref)
+}
+
+func (s *serial) StartSession(ctx context.Context, args control.SessionStartArgs) (control.Session, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.c.StartSession(ctx, args)
 }
 
 func (s *serial) SetupCheck(ctx context.Context) ([]control.SetupDependency, error) {

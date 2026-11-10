@@ -1,0 +1,30 @@
+qcrew                                              [?] Hilfe
+  [1 Projekte] 2 Postfach 3 Sessions 4 Einstellungen 5 Setup
+------------------------------------------------------------
+> Projekte                      [ + Projekt ] [ entfernen ] 
+  PROJEKT  POSTFACH                                         
+> alpha           3                                         
+  beta            0                                         
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+  Sessions vo~ [ claude: setup ] [ codex: setup ] [ shell ] 
+  TOOL    TITEL            STATUS              SEIT         
+> claude  refactor parser  läuft                 1m         
+  codex   write docs       wartet, ohne Hooks    3h         
+  claude  fix flaky test   Fehler                1d         
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+Warnung: codex ist nicht installiert. Nächster Schritt: im  
+Bereich Setup oder mit 'qcrew setup' installieren.          
+enter Sessions  / Suchen  n Projekt anlegen  f Vollbild     
+r Neu laden  1-5 Bereich  q Beenden   up/down Auswählen  1/2

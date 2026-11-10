@@ -1,7 +1,7 @@
 qcrew                                                                                                          [?] Hilfe
   [1 Projekte]  2 Postfach   3 Sessions   4 Einstellungen   5 Setup                                                     
 ------------------------------------------------------------------------------------------------------------------------
-> Projekte                               |   Sessions von alpha                                                         
+> Projekte  [ + Projekt ] [ entfernen ]  |   Sessions von alpha                          [ claude ] [ codex ] [ shell ] 
   PROJEKT  POSTFACH   #= Hilfe ==================================================================#                      
 > alpha           3   | [qcrew]  service-guide   project-guide   session-guide   inbox-guide     |                      
   beta            0   |                                                                          |                      
@@ -32,9 +32,9 @@ qcrew                                                                           
                       |   qcrew and their approvals in the Codex configuration, or take them     |                      
                       |   out, after showing the change and asking; see the session-guide topic  |                      
                       | - qcrew self-update [version], qcrew self-update status: update qcrew    |                      
-                      | Zeilen 1-27 von 47                                                       |                      
+                      | Zeilen 1-27 von 48                                                       |                      
                       |                                                                          |                      
                       | left/right Thema  up/down Scrollen  pgup/pgdown Seite  esc/? Schließen   |                      
                       #==========================================================================#                      
                                          |                                                                              
-enter Sessions  / Suchen  f Vollbild  r Neu laden  1-5 Bereich  q Beenden                         up/down Auswählen  1/2
+enter Sessions  / Suchen  n Projekt anlegen  f Vollbild  r Neu laden  1-5 Bereich  q Beenden      up/down Auswählen  1/2

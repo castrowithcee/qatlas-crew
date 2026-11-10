@@ -216,9 +216,9 @@ func TestSmallTerminalAsksForMoreRoom(t *testing.T) {
 func TestStoppingASessionAsksFirst(t *testing.T) {
 	b := demoBackend()
 	m := newTestModel(t, i18n.English, b, wideWidth, wideHeight)
-	send(m, "enter", "x")
+	send(m, "enter", "e")
 	if m.modal == nil {
-		t.Fatal("x opened no question")
+		t.Fatal("e opened no question")
 	}
 	contains(t, m, "Stop the session 'refactor parser'?", "tool: claude")
 	if len(b.stops()) != 0 {
@@ -228,11 +228,11 @@ func TestStoppingASessionAsksFirst(t *testing.T) {
 	if m.modal != nil || len(b.stops()) != 0 {
 		t.Fatalf("enter answered: modal %v, calls %v", m.modal, b.stops())
 	}
-	send(m, "x", "n")
+	send(m, "e", "n")
 	if m.modal != nil || len(b.stops()) != 0 {
 		t.Fatalf("n answered: calls %v", b.stops())
 	}
-	send(m, "x", "y")
+	send(m, "e", "y")
 	if got := b.stops(); len(got) != 1 || got[0] != "s1" {
 		t.Fatalf("calls = %v", got)
 	}
@@ -243,7 +243,7 @@ func TestStopFailureIsShownAndKeepsTheInterface(t *testing.T) {
 	b := demoBackend()
 	b.stopErr = &cli.Failure{Code: "session-gone", Message: "the session is gone", NextStep: "Run 'qcrew session list'."}
 	m := newTestModel(t, i18n.English, b, wideWidth, wideHeight)
-	send(m, "enter", "x", "y")
+	send(m, "enter", "e", "y")
 	contains(t, m, "the session is gone", "qcrew session list")
 	if m.conn == nil {
 		t.Fatal("an answer of the service dropped the connection")
@@ -252,7 +252,7 @@ func TestStopFailureIsShownAndKeepsTheInterface(t *testing.T) {
 
 func TestStopNeedsASession(t *testing.T) {
 	m := newTestModel(t, i18n.English, &fakeBackend{projects: []control.Project{{ID: "p", Name: "empty"}}}, wideWidth, wideHeight)
-	send(m, "enter", "x")
+	send(m, "enter", "e")
 	if m.modal != nil {
 		t.Fatal("a question for no session")
 	}

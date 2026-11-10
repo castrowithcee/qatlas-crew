@@ -90,7 +90,7 @@ func TestGoldenScreens(t *testing.T) {
 		{"inbox", goldenBackend, []string{"2"}},
 		{"full-projects", goldenBackend, []string{"f"}},
 		{"full-sessions", goldenBackend, []string{"enter", "f"}},
-		{"stop", goldenBackend, []string{"enter", "x"}},
+		{"stop", goldenBackend, []string{"enter", "e"}},
 		{"settings", goldenBackend, []string{"4"}},
 		{"help", goldenBackend, []string{"?"}},
 		{"setup", goldenBackend, []string{"5"}},

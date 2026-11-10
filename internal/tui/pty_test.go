@@ -156,7 +156,7 @@ func TestPtyNoColorAtNarrowSize(t *testing.T) {
 	at = p.mark()
 	p.key("1")
 	p.key("\r")
-	p.key("x")
+	p.key("e")
 	p.waitAfter(at, "Stop the session")
 	p.key("n")
 	p.key("?")

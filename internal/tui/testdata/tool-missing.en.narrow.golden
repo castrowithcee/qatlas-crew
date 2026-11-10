@@ -1,0 +1,30 @@
+qcrew                                               [?] help
+  [1 Projects]  2 Inbox   3 Sessions   4 Settings   5 Setup 
+------------------------------------------------------------
+> Projects                         [ + project ] [ remove ] 
+  PROJECT  INBOX                                            
+> alpha        3                                            
+  beta         0                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+  Sessions of~ [ claude: setup ] [ codex: setup ] [ shell ] 
+  TOOL    TITLE            STATUS             SINCE         
+> claude  refactor parser  running               1m         
+  codex   write docs       waiting, no hooks     3h         
+  claude  fix flaky test   error                 1d         
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+warning: codex is not installed. Next step: install it in   
+the Setup area or with 'qcrew setup'.                       
+enter sessions  / search  n add project  f full screen      
+r reload  1-5 area  q quit               up/down choose  1/2

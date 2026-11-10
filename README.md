@@ -3,8 +3,8 @@
 qcrew is a program with a terminal interface for working with several AI agent command line tools, such as
 Claude Code and Codex, in parallel across several projects.
 
-**Status: early.** The terminal interface shows projects and sessions; it does not yet embed a session view,
-start sessions or add projects, which the command line does. Expect breaking changes before v1.0.0.
+**Status: early.** The terminal interface adds and removes projects and starts and stops sessions; it does not
+yet embed a session view, which `qcrew session attach` provides. Expect breaking changes before v1.0.0.
 
 ## Installation
 
@@ -57,16 +57,27 @@ Sessions, Settings and Setup, which lists tmux, Claude Code and Codex (see [Setu
 | `1` to `5`, or `tab` and left/right | switch the area |
 | up/down, `enter` or right, `esc` or left | choose a project, open its sessions, go back |
 | `f` | show the pane of the area alone and back |
-| `x` | stop the session under the cursor, after asking |
+| `n` | add a project |
+| `d` | remove the chosen project, after asking; its folder stays |
+| `c`, `x`, `s` | start a Claude Code, Codex or shell session in the chosen project |
+| `e` | stop the session under the cursor, after asking |
 | `i` (or `enter`) | in Setup: install the program under the cursor, after asking |
 | `h` (or `enter`) | in Setup: set up or remove the Codex hooks, after showing the change and asking |
 | `/` | filter the list |
 | `r`, `?`, `q` | read again, help, quit |
 
-The mouse does what the keys do: click a tab, a key shown in the header or footer, or a row, and use the wheel.
-With the mouse on, hold Shift to select text. Settings holds theme, language, start area, icons and the mouse;
-they are kept in `tui.yaml` in `~/.qatlas/qcrew` (or in `QCREW_DIR`). If `tmux` is missing the projects still
-show and the interface names the next step: `qcrew setup`, or the Setup area. `NO_COLOR` is respected.
+Adding a project opens a folder picker: type a path (`~` is your home, `tab` completes a folder name), or
+choose from the list of the folders in it, where `..` goes up; then use that folder or a new folder in it,
+which qcrew creates, and give the name. A refusal stands in the dialog, and what you typed stays. The buttons
+above the lists add or remove a project and start a session. Which tools are installed is checked at start,
+on `r` and after an installation in the Setup area; a missing tool shows `setup` on its button and starts
+nothing.
+
+The mouse does what the keys do: click a tab, a button, a key shown in the header or footer, or a row, and use
+the wheel. With the mouse on, hold Shift to select text. Settings holds theme, language, start area, icons and
+the mouse; they are kept in `tui.yaml` in `~/.qatlas/qcrew` (or in `QCREW_DIR`). If `tmux` is missing the
+projects still show and the interface names the next step: `qcrew setup`, or the Setup area. `NO_COLOR` is
+respected.
 
 ## Setup
 

@@ -141,7 +141,6 @@ const (
 	textWhatHooksRemove kittui.TextID = "what.hooksremove"
 	textDetailMore      kittui.TextID = "detail.more"
 	textAnswerConfigure kittui.TextID = "answer.configure"
-	textAnswerRemove    kittui.TextID = "answer.remove"
 	textLogHooksExit    kittui.TextID = "log.hooksexit"
 	textLogHooksNoStart kittui.TextID = "log.hooksnostart"
 	textLogHooksState   kittui.TextID = "log.hooksstate"
@@ -151,7 +150,7 @@ const (
 )
 
 func catalog() i18n.Catalogs[kittui.TextID] {
-	return i18n.Catalogs[kittui.TextID]{
+	return withProjectTexts(i18n.Catalogs[kittui.TextID]{
 		i18n.English: {
 			textAreaProjects: "Projects",
 			textAreaInbox:    "Inbox",
@@ -185,9 +184,9 @@ func catalog() i18n.Catalogs[kittui.TextID] {
 			textStatusError:   "error",
 			textStatusExited:  "exited",
 
-			textProjectsEmpty:   "No project yet. Add one with 'qcrew project add <path>'.",
+			textProjectsEmpty:   "No project yet. Add one with {add}.",
 			textProjectsLoading: "Reading the projects ...",
-			textSessionsEmpty:   "No session in this project. Start one with 'qcrew session start'.",
+			textSessionsEmpty:   "No session in this project. Start one with {claude}, {codex} or {shell}.",
 			textSessionsNoProj:  "Choose a project first.",
 			textInboxSoon:       "The inbox of this project follows in a later release. Open entries: %d.",
 			textMissingProgram:  "%s Next step: run 'qcrew setup', or open the Setup area, to install what qcrew needs.",
@@ -284,7 +283,6 @@ func catalog() i18n.Catalogs[kittui.TextID] {
 			textWhatHooksRemove: "qcrew hands the terminal to 'qcrew setup codex-hooks --remove'. It shows the whole change again and asks before it writes; both files are backed up first, and only the entries of qcrew go.",
 			textDetailMore:      "... %d more changed lines",
 			textAnswerConfigure: "configure",
-			textAnswerRemove:    "remove",
 			textLogHooksExit:    "Codex hooks: the command ended with exit code %d.",
 			textLogHooksNoStart: "Codex hooks: the command could not be started: %s",
 			textLogHooksState:   "Codex hooks now: %s.",
@@ -325,9 +323,9 @@ func catalog() i18n.Catalogs[kittui.TextID] {
 			textStatusError:   "Fehler",
 			textStatusExited:  "beendet",
 
-			textProjectsEmpty:   "Noch kein Projekt. Lege eines mit 'qcrew project add <Pfad>' an.",
+			textProjectsEmpty:   "Noch kein Projekt. Lege eines mit {add} an.",
 			textProjectsLoading: "Lese die Projekte ...",
-			textSessionsEmpty:   "Keine Session in diesem Projekt. Starte eine mit 'qcrew session start'.",
+			textSessionsEmpty:   "Keine Session in diesem Projekt. Starte eine mit {claude}, {codex} oder {shell}.",
 			textSessionsNoProj:  "Wähle zuerst ein Projekt.",
 			textInboxSoon:       "Das Postfach dieses Projekts folgt in einer späteren Version. Offene Einträge: %d.",
 			textMissingProgram:  "%s Nächster Schritt: 'qcrew setup' ausführen oder den Bereich Einrichtung öffnen, um zu installieren, was qcrew braucht.",
@@ -424,7 +422,6 @@ func catalog() i18n.Catalogs[kittui.TextID] {
 			textWhatHooksRemove: "qcrew übergibt das Terminal an 'qcrew setup codex-hooks --remove'. Dort wird die ganze Änderung noch einmal gezeigt und vor dem Schreiben gefragt; beide Dateien werden vorher gesichert, und nur die Einträge von qcrew werden entfernt.",
 			textDetailMore:      "... %d weitere geänderte Zeilen",
 			textAnswerConfigure: "einrichten",
-			textAnswerRemove:    "entfernen",
 			textLogHooksExit:    "Codex-Hooks: Der Befehl endete mit Exit-Code %d.",
 			textLogHooksNoStart: "Codex-Hooks: Der Befehl ließ sich nicht starten: %s",
 			textLogHooksState:   "Codex-Hooks jetzt: %s.",
@@ -432,5 +429,5 @@ func catalog() i18n.Catalogs[kittui.TextID] {
 			textNextHooksFailed: "Nächster Schritt: die Ausgabe im Terminal lesen und h drücken, um es noch einmal zu versuchen. Exit-Code 2 heißt, die Änderung wurde nicht bestätigt oder braucht ein Terminal.",
 			textSessionNoHooks:  "%s, ohne Hooks",
 		},
-	}
+	})
 }
