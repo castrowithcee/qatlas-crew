@@ -35,8 +35,8 @@ func TestArchitecture(t *testing.T) {
 		{
 			Name:  "tui-reaches-the-domain-over-the-client-only",
 			Files: archtest.Files{Under: []string{"internal/tui"}, Tests: archtest.SkipTests},
-			Check: archtest.ForbidImports(append([]string{"internal/service", "internal/cli"}, domain...)...),
-			Hint:  "the terminal interface asks the service through the client and imports no domain package",
+			Check: archtest.AllowImports("internal/client", "internal/control", "internal/helptopics"),
+			Hint:  "the terminal interface asks the service through the client, takes its types from control and its help from helptopics, and imports no other package of the module",
 		},
 		{
 			Name:  "domain-knows-no-service-layer",

@@ -1,0 +1,30 @@
+qcrew                                               [?] help
+  [1 Projects]  2 Inbox   3 Sessions   4 Settings           
+------------------------------------------------------------
+> Projects                                                  
+  PROJECT  INBOX                                            
+  alpha        3                                            
+> beta         0                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+  Sessions of beta                                          
+  TOOL   TITLE           STATUS  SINCE                      
+> shell  build watcher   idle       5s                      
+  codex  old experiment  exited     2d                      
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+enter sessions  / search  f full screen  r reload  1-4 area 
+q quit                                   up/down choose  2/2

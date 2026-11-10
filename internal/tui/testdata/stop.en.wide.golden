@@ -1,0 +1,40 @@
+qcrew                                                                                               [esc] back  [?] help
+   1 Projects   2 Inbox  [3 Sessions]  4 Settings                                                                       
+------------------------------------------------------------------------------------------------------------------------
+  Projects                               | > Sessions of alpha                                                          
+  PROJECT  INBOX                         |   TOOL    TITLE            STATUS   SINCE                                    
+> alpha        3                         | > claude  refactor parser  running     1m                                    
+  beta         0                         |   codex   write docs       waiting     3h                                    
+                                         |   claude  fix flaky test   error       1d                                    
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                            #= Stop session ===============================================#                            
+                            | ! Stop the session 'refactor parser'?                        |                            
+                            |                                                              |                            
+                            | The agent program ends and its window closes. Unsaved work   |                            
+                            | in the session is lost. This cannot be undone.               |                            
+                            | tool: claude                                                 |                            
+                            |                                                              |                            
+                            | [ stop ]  > cancel <                                         |                            
+                            | y stop  n/esc/enter cancel                                   |                            
+                            #==============================================================#                            
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                                                                                                     1/3
