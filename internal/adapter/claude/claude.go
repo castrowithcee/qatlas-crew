@@ -56,6 +56,9 @@ func (Adapter) Command(s adapter.Session) []string {
 	return append(cmd, s.Args...)
 }
 
+// Env is empty: the settings file carries what the hooks need.
+func (Adapter) Env(adapter.Session) []string { return nil }
+
 var agentSession = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 func check(s adapter.Session) error {

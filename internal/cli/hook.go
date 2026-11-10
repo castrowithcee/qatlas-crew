@@ -14,6 +14,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/castrowithcee/qatlas-crew/internal/adapter/codex"
 	"github.com/castrowithcee/qatlas-crew/internal/control"
 )
 
@@ -27,7 +28,13 @@ const (
 	// The hook kinds of Claude Code: its hooks, and its status line.
 	hookClaude       = "claude"
 	hookClaudeStatus = "claude-status"
+	// hookCodex is the hook kind of Codex; its notify program is the same command with the flag hookNotify.
+	hookCodex  = "codex"
+	hookNotify = "--notify"
 )
+
+// hookEnv reads the environment a hook runs in. Tests replace it.
+var hookEnv = os.Getenv
 
 // hookInput is where a hook reads its payload. Tests replace it.
 var hookInput = func() io.Reader { return os.Stdin }
@@ -37,7 +44,7 @@ var hookInput = func() io.Reader { return os.Stdin }
 // an instruction. It does not start the service; without one the event is lost.
 func newHookCommand(access *serviceAccess) *cobra.Command {
 	return &cobra.Command{
-		Use:    "hook claude|claude-status --session <id>",
+		Use:    "hook claude|claude-status --session <id> | hook codex [--notify]",
 		Short:  "Report an event of an agent tool to the service (called by the tool's hooks)",
 		Hidden: true,
 		// The arguments are read by hand: a flag error must not print anything.
@@ -66,10 +73,49 @@ func hookArgs(args []string) (kind, session string, ok bool) {
 // runHook reads the payload from in and reports the event to the service, within hookTimeout. It returns
 // nothing: a failure at any step ends the hook silently.
 func runHook(ctx context.Context, access *serviceAccess, args []string, in io.Reader) {
+	if len(args) > 0 && args[0] == hookCodex {
+		runCodexHook(ctx, access, args, in)
+		return
+	}
 	kind, session, ok := hookArgs(args)
 	if !ok {
 		return
 	}
+	send(ctx, access, func() (control.EventPushArgs, bool) {
+		if kind == hookClaude {
+			return claudeEvent(session, in), true
+		}
+		return claudeContextEvent(session, in)
+	})
+}
+
+// runCodexHook reports an event of Codex: a hook, which reads its payload from in, or with the notify flag
+// the notify program, which gets the payload as its last argument. The session comes from the environment of
+// the tool; without a valid one the hook ends at once, without reading or touching the channel.
+func runCodexHook(ctx context.Context, access *serviceAccess, args []string, in io.Reader) {
+	notify := len(args) >= 2 && args[1] == hookNotify
+	if len(args) != 1 && !notify {
+		return
+	}
+	session := hookEnv(codex.SessionEnv)
+	if !control.ValidSessionID(session) {
+		return
+	}
+	send(ctx, access, func() (control.EventPushArgs, bool) {
+		if notify {
+			payload := ""
+			if len(args) > 2 {
+				payload = args[len(args)-1]
+			}
+			return codexEvent(session, control.EventSourceNotify, strings.NewReader(clipBytes(payload, maxHookPayload))), true
+		}
+		return codexEvent(session, control.EventSourceHook, in), true
+	})
+}
+
+// send builds an event and reports it to the service, within hookTimeout; build runs in its own goroutine,
+// because reading the payload may block. Nothing is returned or printed.
+func send(ctx context.Context, access *serviceAccess, build func() (control.EventPushArgs, bool)) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -79,13 +125,7 @@ func runHook(ctx context.Context, access *serviceAccess, args []string, in io.Re
 	go func() {
 		defer close(done)
 		defer func() { _ = recover() }()
-		var ev control.EventPushArgs
-		var ok bool
-		if kind == hookClaude {
-			ev, ok = claudeEvent(session, in), true
-		} else {
-			ev, ok = claudeContextEvent(session, in)
-		}
+		ev, ok := build()
 		if !ok {
 			return
 		}
@@ -109,17 +149,16 @@ type claudeFields struct {
 
 var claudeEventName = regexp.MustCompile(`^[A-Za-z]{1,64}$`)
 
-// readClaudePayload reads the top-level string fields it needs from the start of a hook payload, at most
-// maxHookPayload bytes of it. A payload cut off by the limit, or damaged later on, still yields the fields
-// that came before the cut, because the event is known from the first of them: a permission request with a
-// huge tool input is still a permission request. ok is false if no valid event name was read.
-func readClaudePayload(in io.Reader) (f claudeFields, ok bool) {
+// scanPayload reads the top-level fields of a JSON object from the start of a hook payload, at most
+// maxHookPayload bytes of it, and calls handle with each key and its raw value. A payload cut off by the
+// limit, or damaged later on, still yields the fields that came before the cut, because the event is known
+// from the first of them: a permission request with a huge tool input is still a permission request. It
+// reports whether the payload started as an object.
+func scanPayload(in io.Reader, handle func(key string, raw json.RawMessage)) bool {
 	dec := json.NewDecoder(io.LimitReader(in, maxHookPayload))
 	if t, err := dec.Token(); err != nil || t != json.Delim('{') {
-		return f, false
+		return false
 	}
-	targets := map[string]*string{"hook_event_name": &f.event, "notification_type": &f.notificationType,
-		"tool_name": &f.tool, "message": &f.message, "last_assistant_message": &f.lastMessage, "source": &f.source}
 	for dec.More() {
 		key, err := dec.Token()
 		name, isString := key.(string)
@@ -130,6 +169,15 @@ func readClaudePayload(in io.Reader) (f claudeFields, ok bool) {
 		if err := dec.Decode(&raw); err != nil {
 			break
 		}
+		handle(name, raw)
+	}
+	return true
+}
+
+// stringFields returns a handler for scanPayload that stores the string values of the named keys; a value
+// of another type is ignored.
+func stringFields(targets map[string]*string) func(string, json.RawMessage) {
+	return func(name string, raw json.RawMessage) {
 		if dst := targets[name]; dst != nil {
 			var v string
 			if json.Unmarshal(raw, &v) == nil {
@@ -137,6 +185,13 @@ func readClaudePayload(in io.Reader) (f claudeFields, ok bool) {
 			}
 		}
 	}
+}
+
+// readClaudePayload reads the fields of a Claude Code hook payload that qcrew uses. ok is false if no valid
+// event name was read.
+func readClaudePayload(in io.Reader) (f claudeFields, ok bool) {
+	scanPayload(in, stringFields(map[string]*string{"hook_event_name": &f.event, "notification_type": &f.notificationType,
+		"tool_name": &f.tool, "message": &f.message, "last_assistant_message": &f.lastMessage, "source": &f.source}))
 	return f, claudeEventName.MatchString(f.event)
 }
 
@@ -210,4 +265,68 @@ func clipRunes(s string, n int) string {
 		return s
 	}
 	return string([]rune(s)[:n-1]) + "…"
+}
+
+// codexFields are the fields of a Codex hook payload, or of a notify payload, that qcrew uses.
+type codexFields struct {
+	event, session, tool, status, message, command string
+}
+
+// notifyEventName is the form of the type of a notify payload, such as agent-turn-complete.
+var notifyEventName = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]{0,63}$`)
+
+// readCodexPayload reads the fields it needs from a hook payload (hook_event_name, session_id, tool_name,
+// status, tool_input.command, error, last_assistant_message) or, with notify, from a notify payload (type,
+// thread-id, last-assistant-message). ok is false if no valid event name was read.
+func readCodexPayload(in io.Reader, notify bool) (f codexFields, ok bool) {
+	var errText, last, input string
+	targets := map[string]*string{"hook_event_name": &f.event, "session_id": &f.session, "tool_name": &f.tool,
+		"status": &f.status, "error": &errText, "last_assistant_message": &last}
+	if notify {
+		targets = map[string]*string{"type": &f.event, "thread-id": &f.session, "last-assistant-message": &last}
+	}
+	byKey := stringFields(targets)
+	scanPayload(in, func(name string, raw json.RawMessage) {
+		if name == "tool_input" && !notify {
+			var ti struct{ Command string }
+			if json.Unmarshal(raw, &ti) == nil {
+				input = ti.Command
+			}
+			return
+		}
+		byKey(name, raw)
+	})
+	f.command = input
+	f.message = last
+	if f.message == "" {
+		f.message = errText
+	}
+	name := claudeEventName
+	if notify {
+		name = notifyEventName
+	}
+	return f, name.MatchString(f.event)
+}
+
+// codexEvent builds the event of a hook or notify call. A payload without a readable event becomes the hook
+// error. The status of a PostModelRequest goes in Type; the command a permission request asks for is its text.
+func codexEvent(session, source string, in io.Reader) control.EventPushArgs {
+	f, ok := readCodexPayload(in, source == control.EventSourceNotify)
+	ev := control.EventPushArgs{Session: session, Source: source}
+	if !ok {
+		ev.Event = control.EventHookError
+		return ev
+	}
+	ev.Event = f.event
+	ev.Type = clipBytes(mask(f.status), control.MaxEventType)
+	ev.Tool = clipBytes(mask(f.tool), control.MaxEventTool)
+	if control.ValidAgentSessionID(f.session) {
+		ev.AgentSession = f.session
+	}
+	text := f.message
+	if f.event == "PermissionRequest" && f.command != "" {
+		text = f.command
+	}
+	ev.Text = clipRunes(mask(text), control.MaxEventText)
+	return ev
 }

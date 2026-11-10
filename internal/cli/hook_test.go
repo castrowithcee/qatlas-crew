@@ -228,3 +228,138 @@ func TestHookTimeout(t *testing.T) {
 		t.Errorf("the hook with a stalled input took %v", d)
 	}
 }
+
+func TestCodexEvent(t *testing.T) {
+	const agent = "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9"
+	cases := []struct {
+		name, source, payload string
+		want                  control.EventPushArgs
+	}{
+		{"prompt", "hook", `{"session_id":"` + agent + `","cwd":"/work","hook_event_name":"UserPromptSubmit","model":"m","prompt":"go"}`,
+			control.EventPushArgs{Event: "UserPromptSubmit", AgentSession: agent}},
+		{"permission with a command", "hook", `{"session_id":"` + agent + `","hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"ls -l\n","description":"x"}}`,
+			control.EventPushArgs{Event: "PermissionRequest", Tool: "Bash", Text: "ls -l ", AgentSession: agent}},
+		{"permission with a patch", "hook", `{"hook_event_name":"PermissionRequest","tool_name":"apply_patch","tool_input":{"patch":"x"}}`,
+			control.EventPushArgs{Event: "PermissionRequest", Tool: "apply_patch"}},
+		{"question tool", "hook", `{"hook_event_name":"PreToolUse","tool_name":"request_user_input","tool_input":{}}`,
+			control.EventPushArgs{Event: "PreToolUse", Tool: "request_user_input"}},
+		{"failed model request", "hook", `{"hook_event_name":"PostModelRequest","status":"failed","error":"rate limited","token_usage":{"n":1}}`,
+			control.EventPushArgs{Event: "PostModelRequest", Type: "failed", Text: "rate limited"}},
+		{"completed model request", "hook", `{"hook_event_name":"PostModelRequest","status":"completed","error":null}`,
+			control.EventPushArgs{Event: "PostModelRequest", Type: "completed"}},
+		{"stop", "hook", `{"session_id":"` + agent + `","hook_event_name":"Stop","stop_hook_active":false,"last_assistant_message":"Done."}`,
+			control.EventPushArgs{Event: "Stop", Text: "Done.", AgentSession: agent}},
+		{"session end", "hook", `{"hook_event_name":"SessionEnd","reason":"other"}`, control.EventPushArgs{Event: "SessionEnd"}},
+		{"an id that is no uuid is dropped", "hook", `{"session_id":"s-1","hook_event_name":"Stop"}`, control.EventPushArgs{Event: "Stop"}},
+		{"nested fields do not count", "hook", `{"hook_event_name":"Stop","tool_input":{"command":"no","status":"failed"}}`,
+			control.EventPushArgs{Event: "Stop"}},
+		{"the command is the text of a permission request only", "hook", `{"hook_event_name":"PreToolUse","tool_name":"shell","tool_input":{"command":"ls"}}`,
+			control.EventPushArgs{Event: "PreToolUse", Tool: "shell"}},
+		{"control characters are masked", "hook", "{\"hook_event_name\":\"PermissionRequest\",\"tool_input\":{\"command\":\"a\\u001b[31mb\"}}",
+			control.EventPushArgs{Event: "PermissionRequest", Text: "a?[31mb"}},
+		{"truncated after the event", "hook", `{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"ab`,
+			control.EventPushArgs{Event: "PermissionRequest", Tool: "Bash"}},
+		{"garbage", "hook", `not json`, control.EventPushArgs{Event: control.EventHookError}},
+		{"empty", "hook", ``, control.EventPushArgs{Event: control.EventHookError}},
+		{"no event name", "hook", `{"session_id":"` + agent + `"}`, control.EventPushArgs{Event: control.EventHookError}},
+		{"event name of an own event", "hook", `{"hook_event_name":"qcrew.context"}`, control.EventPushArgs{Event: control.EventHookError}},
+		{"notify", "notify", `{"type":"agent-turn-complete","thread-id":"` + agent + `","turn-id":"t","cwd":"/work","client":"codex-tui","input-messages":["go"],"last-assistant-message":"Done."}`,
+			control.EventPushArgs{Event: "agent-turn-complete", Text: "Done.", AgentSession: agent}},
+		{"notify without a type", "notify", `{"thread-id":"` + agent + `"}`, control.EventPushArgs{Event: control.EventHookError}},
+		{"notify with a hook name", "notify", `{"hook_event_name":"Stop"}`, control.EventPushArgs{Event: control.EventHookError}},
+		{"notify unreadable", "notify", `{"type":`, control.EventPushArgs{Event: control.EventHookError}},
+	}
+	for _, c := range cases {
+		source := control.EventSourceHook
+		if c.source == "notify" {
+			source = control.EventSourceNotify
+		}
+		got := codexEvent(hookSession, source, strings.NewReader(c.payload))
+		c.want.Session, c.want.Source = hookSession, source
+		if got != c.want {
+			t.Errorf("%s:\n got %+v\nwant %+v", c.name, got, c.want)
+		}
+		if err := got.Validate(); err != nil {
+			t.Errorf("%s: the event does not validate: %v", c.name, err)
+		}
+	}
+}
+
+// The payload of a hook is read up to the limit; the fields before the cut still count.
+func TestCodexEventLimit(t *testing.T) {
+	payload := `{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"` +
+		strings.Repeat("x", 2*maxHookPayload) + `"}}`
+	ev := codexEvent(hookSession, control.EventSourceHook, strings.NewReader(payload))
+	if ev.Event != "PermissionRequest" || ev.Tool != "Bash" || ev.Text != "" {
+		t.Errorf("event %+v", ev)
+	}
+}
+
+// The environment of the tool names the session; the hook says nothing and reaches nothing without it.
+func TestCodexHookNeedsTheSessionFromTheEnvironment(t *testing.T) {
+	dials := 0
+	access := &serviceAccess{dial: func(ctx context.Context) (*client.Client, error) {
+		dials++
+		return nil, errors.New("no service")
+	}}
+	oldEnv := hookEnv
+	t.Cleanup(func() { hookEnv = oldEnv })
+	reads := 0
+	in := readerFunc(func(p []byte) (int, error) { reads++; return 0, io.EOF })
+	for _, session := range []string{"", "bad", "../abcdefghij23", hookSession + "x", "ABCDEFGHIJ23"} {
+		hookEnv = func(k string) string {
+			if k == "QCREW_SESSION" {
+				return session
+			}
+			return "unrelated"
+		}
+		for _, args := range [][]string{{"codex"}, {"codex", "--notify", `{"type":"agent-turn-complete"}`}} {
+			runHook(context.Background(), access, args, in)
+		}
+	}
+	if dials != 0 || reads != 0 {
+		t.Errorf("with no valid session the hook dialed %d times and read the input %d times", dials, reads)
+	}
+	// With a valid session it reports, from stdin or from the argument.
+	hookEnv = func(string) string { return hookSession }
+	runHook(context.Background(), access, []string{"codex"}, strings.NewReader(`{"hook_event_name":"Stop"}`))
+	runHook(context.Background(), access, []string{"codex", "--notify", `{"type":"agent-turn-complete"}`}, in)
+	if dials != 2 {
+		t.Errorf("with a valid session the hook dialed %d times, want 2", dials)
+	}
+	// Anything else in the arguments ends it before the channel.
+	for _, args := range [][]string{{"codex", "--session", hookSession}, {"codex", "extra"}, {"codex", "--bogus", "{}"}} {
+		runHook(context.Background(), access, args, in)
+	}
+	if dials != 2 {
+		t.Errorf("a malformed call dialed: %d", dials)
+	}
+}
+
+type readerFunc func([]byte) (int, error)
+
+func (f readerFunc) Read(p []byte) (int, error) { return f(p) }
+
+// The hidden command ends with exit code 0 and no output for every form of the Codex hook.
+func TestCodexHookCommandIsSilent(t *testing.T) {
+	testenv.Setup(t)
+	testenv.ShortRuntime(t)
+	old := serviceCommand
+	serviceCommand = func() (c background.Command) { t.Error("the hook started the service"); return c }
+	t.Cleanup(func() { serviceCommand = old })
+	oldIn, oldEnv := hookInput, hookEnv
+	hookInput = func() io.Reader { return strings.NewReader(`{"hook_event_name":"Stop"}`) }
+	t.Cleanup(func() { hookInput, hookEnv = oldIn, oldEnv })
+	for _, session := range []string{"", hookSession} {
+		hookEnv = func(string) string { return session }
+		for _, args := range [][]string{
+			{"hook", "codex"}, {"hook", "codex", "--notify", `{"type":"agent-turn-complete"}`}, {"hook", "codex", "--notify"},
+			{"hook", "codex", "--bogus"},
+		} {
+			var stdout, stderr bytes.Buffer
+			if code := Run(args, &stdout, &stderr); code != 0 || stdout.Len() != 0 || stderr.Len() != 0 {
+				t.Errorf("%q with session %q: code=%d stdout=%q stderr=%q", args, session, code, stdout.String(), stderr.String())
+			}
+		}
+	}
+}

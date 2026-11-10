@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/castrowithcee/qatlas-crew/internal/adapter"
 	"github.com/castrowithcee/qatlas-crew/internal/control"
 	"github.com/castrowithcee/qatlas-crew/internal/inbox"
 	"github.com/castrowithcee/qatlas-crew/internal/session"
@@ -15,9 +16,9 @@ import (
 // idleAfter is how long a session must stay idle without a break before the inbox gets an idle entry.
 const idleAfter = 60 * time.Second
 
-// waitSignal is the kind and text of the inbox entry an event of Claude Code asks for, if it asks for one.
-// The text is the event's own, else the name of the tool, else a fixed phrase.
-func waitSignal(ev control.EventPushArgs) (inbox.Kind, string, bool) {
+// waitSignal is the kind and text of the inbox entry an event of Claude Code or Codex asks for, if it asks
+// for one. The text is the event's own, else the name of the tool, else a fixed phrase.
+func waitSignal(tool string, ev control.EventPushArgs) (inbox.Kind, string, bool) {
 	pick := func(fallback string, texts ...string) string {
 		for _, t := range texts {
 			if t != "" {
@@ -25,6 +26,15 @@ func waitSignal(ev control.EventPushArgs) (inbox.Kind, string, bool) {
 			}
 		}
 		return fallback
+	}
+	if tool == adapter.Codex {
+		switch {
+		case ev.Event == "PermissionRequest":
+			return inbox.KindPermission, pick("a permission is requested", ev.Text, ev.Tool), true
+		case ev.Event == "PreToolUse" && ev.Tool == requestUserInputTool:
+			return inbox.KindQuestion, pick("a question is asked", ev.Text, ev.Tool), true
+		}
+		return "", "", false
 	}
 	switch ev.Event {
 	case "PermissionRequest":
@@ -51,13 +61,14 @@ func (s *server) noteEvent(ctx context.Context, x session.Session, ev control.Ev
 	if ch.Dead {
 		return
 	}
-	if ch.changed() && ch.To == statusRunning {
+	if ch.changed() && (ch.To == statusRunning || (x.Tool == adapter.Codex && ch.From == statusWaiting)) {
+		// A Codex session that leaves waiting for any status has left the prompt, answered in the session itself.
 		s.inbox.Resumed(x.ID)
 	}
 	if ch.changed() && ch.To == statusError {
 		s.openEntry(ctx, x.Project, x.ID, inbox.KindError, "a hook of the tool sent something unreadable")
 	}
-	if kind, text, ok := waitSignal(ev); ok && (kind != inbox.KindIdle || ch.IdleNew) {
+	if kind, text, ok := waitSignal(x.Tool, ev); ok && (kind != inbox.KindIdle || ch.IdleNew) {
 		s.openEntry(ctx, x.Project, x.ID, kind, text)
 	}
 }
@@ -73,6 +84,14 @@ func (s *server) noteChanges(ctx context.Context, changes []change) {
 		case statusExited:
 			s.openEntry(ctx, ch.Project, ch.ID, inbox.KindError, "the program of the session ended")
 		}
+	}
+}
+
+// sweepFailures makes an error entry for each Codex session whose failed model request stood for
+// failedRequestAfter without a further event.
+func (s *server) sweepFailures(ctx context.Context) {
+	for _, ch := range s.status.failDue(failedRequestAfter) {
+		s.openEntry(ctx, ch.Project, ch.ID, inbox.KindError, "a model request of the tool failed")
 	}
 }
 
@@ -92,6 +111,16 @@ func (s *server) openEntry(ctx context.Context, project, id string, kind inbox.K
 	var lines []string
 	if out, err := s.sessions.Capture(ctx, id, inbox.MaxLines); err == nil && out != "" {
 		lines = strings.Split(out, "\n")
+	}
+	if text == "" {
+		// No text of its own: the last line that shows something, else a fixed phrase.
+		text = "the tool waits for you"
+		for i := len(lines) - 1; i >= 0; i-- {
+			if strings.TrimSpace(lines[i]) != "" {
+				text = lines[i]
+				break
+			}
+		}
 	}
 	if e, ok := s.inbox.Open(project, id, kind, text, lines); ok {
 		s.log.Info("inbox entry opened", "entry", e.ID, "project", project, "session", id, "kind", string(kind))
@@ -213,7 +242,9 @@ func (s *server) answer(ctx context.Context, args json.RawMessage) (any, error) 
 	if _, err := s.inbox.Answer(e.ID, text); err != nil {
 		return nil, inboxError(err)
 	}
-	if key, preset := inbox.PresetKey(e.Kind, text); preset {
+	// The words yes, always and no choose an option only for Claude Code, whose keys are known; Codex gets the
+	// text as typed.
+	if key, preset := inbox.PresetKey(e.Kind, text); preset && x.Tool == adapter.Claude {
 		err = s.sessions.SendKey(ctx, x.ID, key)
 	} else {
 		err = s.sessions.SendText(ctx, x.ID, text)
@@ -231,6 +262,10 @@ func (s *server) answer(ctx context.Context, args json.RawMessage) (any, error) 
 	done, err := s.inbox.Get(e.ID)
 	if err != nil {
 		return nil, inboxError(err)
+	}
+	// Without hooks nothing tells that the prompt is over; the person's answer does.
+	if ch := s.status.inputSent(x); ch.changed() {
+		s.inbox.Resumed(x.ID)
 	}
 	return wireEntry(done), nil
 }
