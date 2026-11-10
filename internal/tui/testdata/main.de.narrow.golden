@@ -1,7 +1,7 @@
 qcrew                                              [?] Hilfe
   [1 Projekte] 2 Postfach 3 Sessions 4 Einstellungen 5 Setup
 ------------------------------------------------------------
-> Projekte                                                  
+> Projekte                      [ + Projekt ] [ entfernen ] 
   PROJEKT  POSTFACH                                         
 > alpha           3                                         
   beta            0                                         
@@ -11,7 +11,7 @@ qcrew                                              [?] Hilfe
                                                             
                                                             
                                                             
-  Sessions von alpha                                        
+  Sessions von alpha         [ claude ] [ codex ] [ shell ] 
   TOOL    TITEL            STATUS  SEIT                     
 > claude  refactor parser  läuft     1m                     
   codex   write docs       wartet    3h                     
@@ -26,5 +26,5 @@ qcrew                                              [?] Hilfe
                                                             
                                                             
                                                             
-enter Sessions  / Suchen  f Vollbild  r Neu laden           
-1-5 Bereich  q Beenden                up/down Auswählen  1/2
+enter Sessions  / Suchen  n Projekt anlegen  f Vollbild     
+r Neu laden  1-5 Bereich  q Beenden   up/down Auswählen  1/2

@@ -1,7 +1,7 @@
 qcrew                                                                                                          [?] Hilfe
   [1 Projekte]  2 Postfach   3 Sessions   4 Einstellungen   5 Setup                                                     
 ------------------------------------------------------------------------------------------------------------------------
-> Projekte                               |   Sessions von beta                                                          
+> Projekte  [ + Projekt ] [ entfernen ]  |   Sessions von beta                           [ claude ] [ codex ] [ shell ] 
   PROJEKT  POSTFACH                      |   TOOL   TITEL           STATUS   SEIT                                       
   alpha           3                      | > shell  build watcher   untätig    5s                                       
 > beta            0                      |   codex  old experiment  beendet    2d                                       
@@ -37,4 +37,4 @@ qcrew                                                                           
                                          |                                                                              
                                          |                                                                              
                                          |                                                                              
-enter Sessions  / Suchen  f Vollbild  r Neu laden  1-5 Bereich  q Beenden                         up/down Auswählen  2/2
+enter Sessions  / Suchen  n Projekt anlegen  f Vollbild  r Neu laden  1-5 Bereich  q Beenden      up/down Auswählen  2/2

@@ -49,7 +49,7 @@ func Run(opts Options) error {
 	m, err := newModel(config{ctx: ctx, connect: opts.Connect, lang: uiprefs.Language(opts.Prefs.Language),
 		theme: opts.Prefs.Theme, profile: profile, charset: kittui.DetectCharsetMode(env),
 		start: kittui.AreaID(opts.Prefs.Start), now: time.Now, warnings: opts.PrefsWarnings, mouse: opts.Prefs.MouseEnabled,
-		prefs: opts.Prefs, savePrefs: opts.SavePrefs, executable: opts.Executable})
+		prefs: opts.Prefs, savePrefs: opts.SavePrefs, executable: opts.Executable, home: userHome(), folders: osFolders()})
 	if err != nil {
 		return err
 	}
@@ -62,6 +62,15 @@ func Run(opts Options) error {
 		_ = m.conn.Close()
 	}
 	return err
+}
+
+// userHome is the home folder that "~" stands for in the folder picker; empty where there is none.
+func userHome() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return home
 }
 
 func colorProfile(p kittui.ColorProfile) colorprofile.Profile {

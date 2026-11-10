@@ -1,7 +1,7 @@
 qcrew                                [esc] Zurück  [?] Hilfe
   1 Projekte 2 Postfach [3 Sessions] 4 Einstellungen 5 Setup
 ------------------------------------------------------------
-  Projekte                                                  
+  Projekte                      [ + Projekt ] [ entfernen ] 
   PROJEKT  POSTFACH                                         
 > alpha           3                                         
   beta            0                                         
@@ -11,7 +11,7 @@ qcrew                                [esc] Zurück  [?] Hilfe
   #= Session stoppen ====================================#  
   | ! Die Session 'refactor parser' stoppen?             |  
   |                                                      |  
-> | Das Agent-Programm endet und sein Fenster schließt   |  
+> | Das Agent-Programm endet und sein Fenster schließt   |] 
   | sich. Nicht gesicherte Arbeit in der Session geht    |  
 > | verloren. Das lässt sich nicht rückgängig machen.    |  
   | Tool: claude                                         |  

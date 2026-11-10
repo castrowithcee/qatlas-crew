@@ -1,0 +1,30 @@
+qcrew                                                       
+  [1 Projekte] 2 Postfach 3 Sessions 4 Einstellungen 5 Setup
+------------------------------------------------------------
+Projekt anlegen                                             
+Wähle einen vorhandenen Ordner oder den Ort für einen neuen.
+         #=================================================#
+> Ordner | rel_                                            |
+         #=================================================#
+  Tippe einen Pfad, der mit / oder ~ beginnt.               
+    Hier beginnt kein Ordner mit dem Getippten.             
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+[!] Der Pfad rel ist nicht absolut. - Tippe einen Pfad, der 
+mit / oder ~ beginnt.                                       
+            #==============================================#
+> verwenden | diesen Ordner                              v |
+            #==============================================#
+            links und rechts wählen; einen neuen Ordner legt
+            qcrew an                                        
+            +----------------------------------------------+
+  Name      | leer                                         |
+            +----------------------------------------------+
+                                                            
+                                                            
+                                                            
+[ F2 anlegen ]  [ esc abbrechen ]                           
+tab vervollständigen  down Ordner  F2 anlegen  esc abbrechen
