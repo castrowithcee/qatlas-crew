@@ -40,7 +40,7 @@ func golden(t *testing.T, name string, got []byte) {
 }
 
 var sampleProjects = []control.Project{
-	{ID: "abcdefghijk2", Name: "app", Path: "/work/app", AddedAt: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)},
+	{ID: "abcdefghijk2", Name: "app", Path: "/work/app", AddedAt: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC), InboxOpen: 2},
 	{ID: "mnopqrstuvw7", Name: "my library", Path: "/work/clients/lib", AddedAt: time.Date(2026, 2, 3, 4, 5, 6, 0, time.UTC)},
 }
 

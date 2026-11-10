@@ -1,0 +1,13 @@
+ID          eeeeeeeeeee2
+PROJECT     abcdefghijk2
+SESSION     aaaaaaaaaaa2
+KIND        permission
+STATUS      open
+CREATED_AT  2026-01-02T03:59:15Z
+TEXT        Bash
+
+LAST SCREEN LINES
+| Bash command
+|   ls -la
+| Do you want to proceed?
+| ❯ 1. Yes

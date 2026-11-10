@@ -23,7 +23,7 @@ func (s *server) addProjectOps() {
 		}
 		out := control.ProjectListResult{Projects: make([]control.Project, 0, len(list))}
 		for _, p := range list {
-			out.Projects = append(out.Projects, wire(p))
+			out.Projects = append(out.Projects, s.wireProject(p))
 		}
 		return out, nil
 	}
@@ -36,7 +36,7 @@ func (s *server) addProjectOps() {
 		if err != nil {
 			return nil, projectError(err)
 		}
-		return wire(p), nil
+		return s.wireProject(p), nil
 	}
 	s.ops[control.OpProjectAdd] = func(_ context.Context, args json.RawMessage) (any, error) {
 		var a control.ProjectAddArgs
@@ -51,7 +51,7 @@ func (s *server) addProjectOps() {
 			return nil, projectError(err)
 		}
 		s.log.Info("project added", "id", p.ID, "path", p.Path)
-		return wire(p), nil
+		return s.wireProject(p), nil
 	}
 	s.ops[control.OpProjectRemove] = func(ctx context.Context, args json.RawMessage) (any, error) {
 		var a control.ProjectRefArgs
@@ -74,13 +74,15 @@ func (s *server) addProjectOps() {
 		if p, err = s.projects.Remove(p.ID); err != nil {
 			return nil, projectError(err)
 		}
+		s.inbox.DropProject(p.ID)
 		s.log.Info("project removed", "id", p.ID, "path", p.Path)
-		return wire(p), nil
+		return s.wireProject(p), nil
 	}
 }
 
-func wire(p project.Project) control.Project {
-	return control.Project{ID: p.ID, Name: p.Name, Path: p.Path, AddedAt: p.AddedAt}
+// wireProject returns a project as the channel carries it, with the count of its open inbox entries.
+func (s *server) wireProject(p project.Project) control.Project {
+	return control.Project{ID: p.ID, Name: p.Name, Path: p.Path, AddedAt: p.AddedAt, InboxOpen: s.inbox.OpenCount(p.ID)}
 }
 
 // decodeArgs reads the arguments strictly into v; absent arguments leave v as it is.

@@ -194,6 +194,37 @@ func (c *Client) CaptureSession(ctx context.Context, id string, lines int) (cont
 	return res, err
 }
 
+// InboxEntries returns the inbox entries of the project whose id or name is project, or of every project if
+// it is empty. Without all the picked and the closed ones are left out.
+func (c *Client) InboxEntries(ctx context.Context, project string, all bool) ([]control.InboxEntry, error) {
+	var res control.InboxListResult
+	if err := c.callInto(ctx, control.OpInboxList, control.InboxListArgs{Project: project, All: all}, &res); err != nil {
+		return nil, err
+	}
+	return res.Entries, nil
+}
+
+// InboxEntry returns the inbox entry with the given id.
+func (c *Client) InboxEntry(ctx context.Context, id string) (control.InboxEntry, error) {
+	var e control.InboxEntry
+	err := c.callInto(ctx, control.OpInboxGet, control.InboxRefArgs{ID: id}, &e)
+	return e, err
+}
+
+// AnswerInbox sends an answer to the session of an open inbox entry and returns the entry.
+func (c *Client) AnswerInbox(ctx context.Context, id, text string) (control.InboxEntry, error) {
+	var e control.InboxEntry
+	err := c.callInto(ctx, control.OpInboxAnswer, control.InboxAnswerArgs{ID: id, Text: text}, &e)
+	return e, err
+}
+
+// CloseInbox closes an inbox entry without an answer and returns it.
+func (c *Client) CloseInbox(ctx context.Context, id string) (control.InboxEntry, error) {
+	var e control.InboxEntry
+	err := c.callInto(ctx, control.OpInboxClose, control.InboxRefArgs{ID: id}, &e)
+	return e, err
+}
+
 func (c *Client) callInto(ctx context.Context, op string, args, result any) error {
 	raw, err := c.Call(ctx, op, args)
 	if err != nil {
@@ -216,6 +247,8 @@ const (
 	CodeInUse             output.Code = "in-use"
 	CodeDependencyMissing output.Code = "dependency-missing"
 	CodeToolMissing       output.Code = "tool-missing"
+	// CodeSessionGone is the shared error code of an answer whose session has no live window.
+	CodeSessionGone output.Code = "session-gone"
 )
 
 // failureKind is how a code of the service appears on the command line. A refused request of the user is a
@@ -248,6 +281,8 @@ var codes = map[string]failureKind{
 	control.CodeDependencyMissing: {code: CodeDependencyMissing, plain: true,
 		next: "Run 'qcrew setup' to install what qcrew needs."},
 	control.CodeToolMissing: {code: CodeToolMissing, plain: true, next: "Run 'qcrew setup' to install the tool."},
+	control.CodeSessionGone: {code: CodeSessionGone, refusal: true,
+		next: "Run 'qcrew session list' to see the sessions, and close the entry with 'qcrew inbox close <id>'."},
 }
 
 // Failure turns the code and message of a failed answer into a diagnostic. The answer is data of another

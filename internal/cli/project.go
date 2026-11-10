@@ -100,7 +100,7 @@ func projectFailure(err error) error {
 	return serviceFailure(err)
 }
 
-var projectColumns = []string{"id", "name", "path"}
+var projectColumns = []string{"id", "name", "path", "inbox_open"}
 
 func projectObject(p control.Project) output.Object {
 	return output.Object{Fields: []output.Field{{Name: "id", Value: p.ID}, {Name: "name", Value: p.Name}, {Name: "path", Value: p.Path}}}
@@ -109,7 +109,7 @@ func projectObject(p control.Project) output.Object {
 func projectCollection(projects []control.Project) output.Collection {
 	rows := make([]output.Row, 0, len(projects))
 	for _, p := range projects {
-		rows = append(rows, output.Row{"id": p.ID, "name": p.Name, "path": p.Path})
+		rows = append(rows, output.Row{"id": p.ID, "name": p.Name, "path": p.Path, "inbox_open": int64(p.InboxOpen)})
 	}
 	return output.Collection{Columns: projectColumns, Rows: rows}
 }
@@ -158,8 +158,9 @@ func newProjectCommand(program *cobracli.Program, access *serviceAccess) *cobra.
 
 	list := &cobra.Command{
 		Use:   "list",
-		Short: "List the projects with id, name and path",
-		Long:  "list shows the registered projects in the order they were added (--output table, json or compact).",
+		Short: "List the projects with id, name, path and open inbox entries",
+		Long: "list shows the registered projects in the order they were added, with inbox_open, the number of open\n" +
+			"inbox entries of each (--output table, json or compact).",
 		RunE: func(c *cobra.Command, _ []string) error {
 			cl, err := access.projectClient(c.Context())
 			if err != nil {

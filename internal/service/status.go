@@ -2,6 +2,8 @@ package service
 
 import (
 	"log/slog"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,18 +34,37 @@ type transition struct {
 	Event    string
 }
 
+// change is a move of a session to another status, with what caused it.
+type change struct {
+	ID, Project string
+	From, To    string
+	Event       string
+	// Dead is set when the session's program had ended already, so that the event changed nothing.
+	Dead bool
+	// IdleNew is set for an idle_prompt event that opens its idle phase for the inbox, which offers each phase
+	// once.
+	IdleNew bool
+}
+
+// changed reports whether the status differs.
+func (c change) changed() bool { return c.From != c.To }
+
 type sessionState struct {
-	hooked bool
+	project string
+	hooked  bool
 	// startedHere is set for a session this service started, whose whole life it has watched.
 	startedHere bool
 	// seen is set once an event arrived since the service started.
 	seen bool
 	// dead is set once tmux reports the session's program as ended; the status no longer changes then.
-	dead    bool
-	status  string
-	since   time.Time
-	context *int
-	history []transition
+	dead bool
+	// idleNoted is set once the current idle phase has been offered to the inbox; any change of status
+	// ends the phase.
+	idleNoted bool
+	status    string
+	since     time.Time
+	context   *int
+	history   []transition
 }
 
 // tracker derives the status of the sessions from the events of their tools and from tmux. It lives in
@@ -64,7 +85,7 @@ func newTracker(now func() time.Time, log *slog.Logger) *tracker {
 func (t *tracker) get(x session.Session) *sessionState {
 	st, ok := t.states[x.ID]
 	if !ok {
-		st = &sessionState{hooked: adapter.HasHooks(x.Tool), status: x.Status, since: x.Started}
+		st = &sessionState{project: x.Project, hooked: adapter.HasHooks(x.Tool), status: x.Status, since: x.Started}
 		if x.Status == statusExited {
 			st.since = t.now()
 		}
@@ -84,7 +105,7 @@ func (t *tracker) set(id string, st *sessionState, status, event string) {
 		st.history = st.history[len(st.history)-maxHistory:]
 	}
 	t.log.Info("session status changed", "id", id, "from", st.status, "to", status, "event", event)
-	st.status, st.since = status, at
+	st.status, st.since, st.idleNoted = status, at, false
 }
 
 // started notes a session that this service has just started.
@@ -102,10 +123,12 @@ func (t *tracker) forget(id string) {
 }
 
 // observe takes in the sessions tmux lists: a program that has ended makes the session exited, or error if a
-// tool with hooks ended without saying so. A session tmux no longer lists is forgotten.
-func (t *tracker) observe(list []session.Session) {
+// tool with hooks ended without saying so. A session tmux no longer lists is forgotten. It returns the
+// changes it made.
+func (t *tracker) observe(list []session.Session) []change {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	var changes []change
 	present := make(map[string]bool, len(list))
 	for _, x := range list {
 		present[x.ID] = true
@@ -114,6 +137,7 @@ func (t *tracker) observe(list []session.Session) {
 			continue
 		}
 		st.dead = true
+		from := st.status
 		switch {
 		case st.status == statusExited || st.status == statusError:
 		case st.hooked && (st.startedHere || st.seen):
@@ -122,12 +146,33 @@ func (t *tracker) observe(list []session.Session) {
 		default:
 			t.set(x.ID, st, statusExited, eventPaneDead)
 		}
+		if st.status != from {
+			changes = append(changes, change{ID: x.ID, Project: x.Project, From: from, To: st.status, Event: eventPaneDead})
+		}
 	}
 	for id := range t.states {
 		if !present[id] {
 			delete(t.states, id)
 		}
 	}
+	return changes
+}
+
+// idleDue returns the sessions that have been idle without a break for at least after and that were not yet
+// offered to the inbox in this idle phase; each phase is returned once.
+func (t *tracker) idleDue(after time.Duration) []change {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	now := t.now()
+	var due []change
+	for id, st := range t.states {
+		if st.status == statusIdle && !st.dead && !st.idleNoted && now.Sub(st.since) >= after {
+			st.idleNoted = true
+			due = append(due, change{ID: id, Project: st.project, From: statusIdle, To: statusIdle})
+		}
+	}
+	slices.SortFunc(due, func(a, b change) int { return strings.Compare(a.ID, b.ID) })
+	return due
 }
 
 // view returns the status of x, since when it holds, and the fill of the context window if known.
@@ -153,22 +198,29 @@ func (t *tracker) history(id string) []transition {
 	return nil
 }
 
-// apply takes in an event of the tool of x.
-func (t *tracker) apply(x session.Session, ev control.EventPushArgs) {
+// apply takes in an event of the tool of x and returns the move of the status it caused, whose From and To
+// are equal if the status did not change.
+func (t *tracker) apply(x session.Session, ev control.EventPushArgs) change {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	st := t.get(x)
 	st.seen = true
+	ch := change{ID: x.ID, Project: x.Project, From: st.status, To: st.status, Event: ev.Event, Dead: st.dead}
 	if ev.Event == control.EventContext {
 		if ev.ContextPercent != nil {
 			c := *ev.ContextPercent
 			st.context = &c
 		}
-		return
+		return ch
 	}
 	if status, ok := claudeStatus(ev); ok && !st.dead {
 		t.set(x.ID, st, status, ev.Event)
+		ch.To = st.status
+		if ev.Event == "Notification" && ev.Type == "idle_prompt" && !st.idleNoted {
+			ch.IdleNew, st.idleNoted = true, true
+		}
 	}
+	return ch
 }
 
 // claudeStatus is the status an event of Claude Code sets. Every other event, every other notification type

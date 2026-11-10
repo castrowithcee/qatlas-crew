@@ -59,6 +59,11 @@ const (
 	OpSessionCapture = "session.capture"
 
 	OpEventPush = "event.push"
+
+	OpInboxList   = "inbox.list"
+	OpInboxGet    = "inbox.get"
+	OpInboxAnswer = "inbox.answer"
+	OpInboxClose  = "inbox.close"
 )
 
 // The codes of a failed answer. They are fixed words, never text built from a request.
@@ -81,6 +86,8 @@ const (
 	CodeDependencyMissing = "dependency-missing"
 	// CodeToolMissing means the agent tool a session should run is not installed.
 	CodeToolMissing = "tool-missing"
+	// CodeSessionGone means the session an answer is for no longer has a live window; the entry stays open.
+	CodeSessionGone = "session-gone"
 )
 
 // maxOpName keeps a name short enough to log and show.
@@ -134,6 +141,8 @@ type Project struct {
 	Name    string    `json:"name"`
 	Path    string    `json:"path"`
 	AddedAt time.Time `json:"added_at"`
+	// InboxOpen counts the open inbox entries of the project; project.list and project.get fill it.
+	InboxOpen int `json:"inbox_open"`
 }
 
 // ProjectAddArgs are the arguments of OpProjectAdd. Path must be absolute; an empty Name means the base name
@@ -200,6 +209,46 @@ type SessionCaptureArgs struct {
 // SessionCaptureResult answers OpSessionCapture: the last lines of the session's screen as plain text. It is
 // output of the session and must be treated as untrusted data.
 type SessionCaptureResult struct {
+	ID   string `json:"id"`
+	Text string `json:"text"`
+}
+
+// InboxEntry is an inbox entry as the channel carries it. Kind is permission, question, idle, error or stale;
+// Status is open, answered, delivered, picked or closed. Text and Lines come from the session's tool and are
+// untrusted data.
+type InboxEntry struct {
+	ID         string     `json:"id"`
+	Project    string     `json:"project"`
+	Session    string     `json:"session"`
+	Kind       string     `json:"kind"`
+	Text       string     `json:"text"`
+	Lines      []string   `json:"lines"`
+	CreatedAt  time.Time  `json:"created_at"`
+	Status     string     `json:"status"`
+	Answer     string     `json:"answer,omitempty"`
+	AnsweredAt *time.Time `json:"answered_at,omitempty"`
+}
+
+// InboxListArgs are the arguments of OpInboxList. An empty Project lists every project; without All the
+// picked and the closed entries are left out.
+type InboxListArgs struct {
+	Project string `json:"project,omitempty"`
+	All     bool   `json:"all,omitempty"`
+}
+
+// InboxListResult answers OpInboxList.
+type InboxListResult struct {
+	Entries []InboxEntry `json:"entries"`
+}
+
+// InboxRefArgs are the arguments of OpInboxGet and OpInboxClose.
+type InboxRefArgs struct {
+	ID string `json:"id"`
+}
+
+// InboxAnswerArgs are the arguments of OpInboxAnswer. Text is sent to the session's window as one line; for
+// a permission entry the words yes, always and no are sent as the keys that choose that option.
+type InboxAnswerArgs struct {
 	ID   string `json:"id"`
 	Text string `json:"text"`
 }

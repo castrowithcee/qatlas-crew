@@ -24,6 +24,7 @@ func TestFailureMapsCodes(t *testing.T) {
 		"in-use":              CodeInUse,
 		"dependency-missing":  CodeDependencyMissing,
 		"tool-missing":        CodeToolMissing,
+		"session-gone":        CodeSessionGone,
 		"something-new":       output.CodeRuntime,
 		"":                    output.CodeRuntime,
 	}
@@ -52,7 +53,7 @@ func TestEveryServiceCodeIsMapped(t *testing.T) {
 	for _, code := range []string{control.CodeInvalidRequest, control.CodeUnsupportedVersion, control.CodeUnknownOperation,
 		control.CodeRuntime, control.CodeInvalidArgument, control.CodeAlreadyExists, control.CodeNotFound,
 		control.CodeConfigInvalid, control.CodeConflict, control.CodeInUse, control.CodeDependencyMissing,
-		control.CodeToolMissing} {
+		control.CodeToolMissing, control.CodeSessionGone} {
 		kind, ok := codes[code]
 		if !ok || !output.ValidCode(kind.code) || kind.next == "" {
 			t.Errorf("service code %q: %+v, mapped %v", code, kind, ok)

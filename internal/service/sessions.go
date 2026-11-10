@@ -27,17 +27,20 @@ type mirror struct {
 func (s *server) refreshSessions(ctx context.Context) ([]session.Session, error) {
 	list, err := s.sessions.List(ctx)
 	s.mirror.mu.Lock()
-	defer s.mirror.mu.Unlock()
 	if err != nil {
 		// Logged once per distinct error, so that a lasting fault does not fill the log every few seconds.
 		if msg := err.Error(); msg != s.mirror.lastErr {
 			s.mirror.lastErr = msg
 			s.log.Warn("cannot read the sessions from tmux", "err", err)
 		}
+		s.mirror.mu.Unlock()
 		return nil, err
 	}
 	s.mirror.list, s.mirror.lastErr = list, ""
-	s.status.observe(list)
+	changes := s.status.observe(list)
+	s.mirror.mu.Unlock()
+	// The inbox looks at tmux for the screen lines, which must not happen under the mirror's lock.
+	s.noteChanges(ctx, changes)
 	return list, nil
 }
 
@@ -50,6 +53,7 @@ func (s *server) refreshLoop(ctx context.Context) {
 			return
 		case <-ticker.C:
 			_, _ = s.refreshSessions(ctx)
+			s.sweepIdle(ctx)
 		}
 	}
 }
@@ -85,7 +89,8 @@ func (s *server) addSessionOps() {
 		if !adapter.HasHooks(x.Tool) {
 			return nil, &control.Error{Code: control.CodeInvalidArgument, Message: "the tool of the session reports no events"}
 		}
-		s.status.apply(x, a)
+		ch := s.status.apply(x, a)
+		s.noteEvent(ctx, x, a, ch)
 		return struct{}{}, nil
 	}
 	s.ops[control.OpSessionStart] = func(ctx context.Context, args json.RawMessage) (any, error) {
@@ -152,6 +157,7 @@ func (s *server) addSessionOps() {
 		s.log.Info("session stopped", "id", stopped.ID, "project", stopped.Project)
 		out := s.wire(stopped)
 		s.status.forget(stopped.ID)
+		s.inbox.CloseSession(stopped.ID)
 		_, _ = s.refreshSessions(ctx)
 		return out, nil
 	}

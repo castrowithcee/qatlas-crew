@@ -1,0 +1,9 @@
+ID           fffffffffff3
+PROJECT      mnopqrstuvw7
+SESSION      bbbbbbbbbbb3
+KIND         question
+STATUS       delivered
+CREATED_AT   2026-01-02T01:00:00Z
+TEXT         Which database should the migration use, and should it keep the old tables or drop them after the copy?
+ANSWER       postgres
+ANSWERED_AT  2026-01-02T03:30:00Z
