@@ -82,6 +82,41 @@ const (
 	textSaveFailed  kittui.TextID = "settings.savefailed"
 	textFormRetry   kittui.TextID = "settings.retry"
 	textFormNoPlace kittui.TextID = "settings.noplace"
+
+	// The Setup area.
+	textAreaSetup      kittui.TextID = "area.setup"
+	textKeyInstall     kittui.TextID = "key.install"
+	textPaneSetup      kittui.TextID = "pane.setup"
+	textPaneSetupLog   kittui.TextID = "pane.setuplog"
+	textColProgram     kittui.TextID = "col.program"
+	textColVersion     kittui.TextID = "col.version"
+	textColInstall     kittui.TextID = "col.install"
+	textSetupInstalled kittui.TextID = "setup.installed"
+	textSetupMissing   kittui.TextID = "setup.missing"
+	textSetupButton    kittui.TextID = "setup.button"
+	textSetupSee       kittui.TextID = "setup.see"
+	textSetupLoading   kittui.TextID = "setup.loading"
+	textSetupEmpty     kittui.TextID = "setup.empty"
+	textSetupNothing   kittui.TextID = "setup.nothing"
+	textSetupHave      kittui.TextID = "setup.have"
+	textSetupNoWay     kittui.TextID = "setup.noway"
+	textSetupBusy      kittui.TextID = "setup.busy"
+	textTitleInstall   kittui.TextID = "title.install"
+	textAskInstall     kittui.TextID = "ask.install"
+	textWhatInstall    kittui.TextID = "what.install"
+	textDetailSudo     kittui.TextID = "detail.sudo"
+	textAnswerInstall  kittui.TextID = "answer.install"
+	textErrExec        kittui.TextID = "err.exec"
+	textLogExit        kittui.TextID = "log.exit"
+	textLogNoStart     kittui.TextID = "log.nostart"
+	textLogFound       kittui.TextID = "log.found"
+	textLogFoundPlain  kittui.TextID = "log.foundplain"
+	textLogNotFound    kittui.TextID = "log.notfound"
+	textLogNoCheck     kittui.TextID = "log.nocheck"
+	textNextReady      kittui.TextID = "next.ready"
+	textNextPath       kittui.TextID = "next.path"
+	textNextFailed     kittui.TextID = "next.failed"
+	textNextCheck      kittui.TextID = "next.check"
 )
 
 func catalog() i18n.Catalogs[kittui.TextID] {
@@ -124,7 +159,7 @@ func catalog() i18n.Catalogs[kittui.TextID] {
 			textSessionsEmpty:   "No session in this project. Start one with {claude}, {codex} or {shell}.",
 			textSessionsNoProj:  "Choose a project first.",
 			textInboxSoon:       "The inbox of this project follows in a later release. Open entries: %d.",
-			textMissingProgram:  "%s Next step: run 'qcrew setup' to install what qcrew needs.",
+			textMissingProgram:  "%s Next step: run 'qcrew setup', or open the Setup area, to install what qcrew needs.",
 
 			textErrChannel: "The qcrew service does not answer: %s",
 			textErrService: "%s %s",
@@ -161,6 +196,40 @@ func catalog() i18n.Catalogs[kittui.TextID] {
 			textSaveFailed:  "The preferences could not be written: %s",
 			textFormRetry:   "Check the folder and save again.",
 			textFormNoPlace: "Set HOME so that qcrew can keep the preferences.",
+
+			textAreaSetup:      "Setup",
+			textKeyInstall:     "install",
+			textPaneSetup:      "Programs qcrew needs",
+			textPaneSetupLog:   "Result",
+			textColProgram:     "Program",
+			textColVersion:     "Version",
+			textColInstall:     "Install",
+			textSetupInstalled: "installed",
+			textSetupMissing:   "missing",
+			textSetupButton:    "[install]",
+			textSetupSee:       "see %s",
+			textSetupLoading:   "Checking the programs ...",
+			textSetupEmpty:     "The service reported no program to check.",
+			textSetupNothing:   "There is no program to install here.",
+			textSetupHave:      "%s is installed already.",
+			textSetupNoWay:     "qcrew knows no supported way to install %s on this system; see %s.",
+			textSetupBusy:      "An installation is running; wait for it.",
+			textTitleInstall:   "Install program",
+			textAskInstall:     "Install %s?",
+			textWhatInstall:    "qcrew hands the terminal to 'qcrew setup install %s'. It shows each command again and asks before it runs it; a command with sudo asks a second time. Nothing runs without your yes there.",
+			textDetailSudo:     "This command runs with sudo and asks for your password.",
+			textAnswerInstall:  "install",
+			textErrExec:        "The qcrew program cannot be found to run the installation: %s",
+			textLogExit:        "%s: the install command ended with exit code %d.",
+			textLogNoStart:     "%s: the install command could not be started: %s",
+			textLogFound:       "%s: found now, %s.",
+			textLogFoundPlain:  "%s: found now.",
+			textLogNotFound:    "%s: not found yet.",
+			textLogNoCheck:     "%s: the check afterwards failed: %s",
+			textNextReady:      "Next step: none, %s is ready to use.",
+			textNextPath:       "Next step: open a new shell or add the folder the installer named to PATH, then press r.",
+			textNextFailed:     "Next step: read the output in the terminal, fix the cause and press i to try again. Exit code 2 means the command was not confirmed or needs a terminal.",
+			textNextCheck:      "Next step: press r to check again.",
 		},
 		i18n.German: {
 			textAreaProjects: "Projekte",
@@ -200,7 +269,7 @@ func catalog() i18n.Catalogs[kittui.TextID] {
 			textSessionsEmpty:   "Keine Session in diesem Projekt. Starte eine mit {claude}, {codex} oder {shell}.",
 			textSessionsNoProj:  "Wähle zuerst ein Projekt.",
 			textInboxSoon:       "Das Postfach dieses Projekts folgt in einer späteren Version. Offene Einträge: %d.",
-			textMissingProgram:  "%s Nächster Schritt: 'qcrew setup' ausführen, um zu installieren, was qcrew braucht.",
+			textMissingProgram:  "%s Nächster Schritt: 'qcrew setup' ausführen oder den Bereich Einrichtung öffnen, um zu installieren, was qcrew braucht.",
 
 			textErrChannel: "Der qcrew-Dienst antwortet nicht: %s",
 			textErrService: "%s %s",
@@ -237,6 +306,40 @@ func catalog() i18n.Catalogs[kittui.TextID] {
 			textSaveFailed:  "Die Einstellungen ließen sich nicht schreiben: %s",
 			textFormRetry:   "Prüfe den Ordner und speichere erneut.",
 			textFormNoPlace: "Setze HOME, damit qcrew die Einstellungen ablegen kann.",
+
+			textAreaSetup:      "Setup",
+			textKeyInstall:     "installieren",
+			textPaneSetup:      "Programme, die qcrew braucht",
+			textPaneSetupLog:   "Ergebnis",
+			textColProgram:     "Programm",
+			textColVersion:     "Version",
+			textColInstall:     "Installation",
+			textSetupInstalled: "installiert",
+			textSetupMissing:   "fehlt",
+			textSetupButton:    "[installieren]",
+			textSetupSee:       "siehe %s",
+			textSetupLoading:   "Prüfe die Programme ...",
+			textSetupEmpty:     "Der Dienst meldet kein Programm zur Prüfung.",
+			textSetupNothing:   "Hier gibt es kein Programm zu installieren.",
+			textSetupHave:      "%s ist schon installiert.",
+			textSetupNoWay:     "qcrew kennt auf diesem System keinen unterstützten Weg, %s zu installieren; siehe %s.",
+			textSetupBusy:      "Eine Installation läuft; warte darauf.",
+			textTitleInstall:   "Programm installieren",
+			textAskInstall:     "%s installieren?",
+			textWhatInstall:    "qcrew übergibt das Terminal an 'qcrew setup install %s'. Dort wird jeder Befehl noch einmal gezeigt und vor der Ausführung gefragt; ein Befehl mit sudo fragt ein zweites Mal. Ohne dein Ja läuft dort nichts.",
+			textDetailSudo:     "Dieser Befehl läuft mit sudo und fragt nach deinem Passwort.",
+			textAnswerInstall:  "installieren",
+			textErrExec:        "Das qcrew-Programm für die Installation wurde nicht gefunden: %s",
+			textLogExit:        "%s: Der Installationsbefehl endete mit Exit-Code %d.",
+			textLogNoStart:     "%s: Der Installationsbefehl ließ sich nicht starten: %s",
+			textLogFound:       "%s: jetzt gefunden, %s.",
+			textLogFoundPlain:  "%s: jetzt gefunden.",
+			textLogNotFound:    "%s: noch nicht gefunden.",
+			textLogNoCheck:     "%s: Die Prüfung danach schlug fehl: %s",
+			textNextReady:      "Nächster Schritt: keiner, %s ist einsatzbereit.",
+			textNextPath:       "Nächster Schritt: eine neue Shell öffnen oder den Ordner, den der Installer nennt, in PATH aufnehmen, dann r drücken.",
+			textNextFailed:     "Nächster Schritt: die Ausgabe im Terminal lesen, die Ursache beheben und i drücken, um es erneut zu versuchen. Exit-Code 2 heißt: der Befehl wurde nicht bestätigt oder braucht ein Terminal.",
+			textNextCheck:      "Nächster Schritt: r drücken, um erneut zu prüfen.",
 		},
 	})
 }

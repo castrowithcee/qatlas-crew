@@ -23,6 +23,8 @@ type Options struct {
 	PrefsWarnings []string
 	// SavePrefs writes the preferences to the device; nil when this device has no place for them.
 	SavePrefs func(uiprefs.Prefs) error
+	// Executable names the qcrew program that runs an installation; nil takes the running program.
+	Executable func() (string, error)
 }
 
 // PrefsSchema is what the preferences file of the interface may hold.
@@ -47,7 +49,7 @@ func Run(opts Options) error {
 	m, err := newModel(config{ctx: ctx, connect: opts.Connect, lang: uiprefs.Language(opts.Prefs.Language),
 		theme: opts.Prefs.Theme, profile: profile, charset: kittui.DetectCharsetMode(env),
 		start: kittui.AreaID(opts.Prefs.Start), now: time.Now, warnings: opts.PrefsWarnings, mouse: opts.Prefs.MouseEnabled,
-		prefs: opts.Prefs, savePrefs: opts.SavePrefs, home: userHome(), folders: osFolders()})
+		prefs: opts.Prefs, savePrefs: opts.SavePrefs, executable: opts.Executable, home: userHome(), folders: osFolders()})
 	if err != nil {
 		return err
 	}

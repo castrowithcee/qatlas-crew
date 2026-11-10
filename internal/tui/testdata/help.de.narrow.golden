@@ -1,5 +1,5 @@
 qcrew                                              [?] Hilfe
-  [1 Projekte]  2 Postfach   3 Sessions   4 Einstellungen   
+  [1 Projekte] 2 Postfach 3 Sessions 4 Einstellungen 5 Setup
 ------------------------------------------------------------
 > Projekte                      [ + Projekt ] [ entfernen ] 
   #= Hilfe ==============================================#  
@@ -21,10 +21,10 @@ qcrew                                              [?] Hilfe
   |   directories qcrew works in, see the project-guide  |  
   |   topic                                              |  
   | - qcrew session start|list|stop|attach: run agent    |  
-  | Zeilen 1-16 von 44                                   |  
+  | Zeilen 1-16 von 51                                   |  
   |                                                      |  
   | left/right Thema  up/down Scrollen  esc/? Schließen  |  
   #======================================================#  
                                                             
 enter Sessions  / Suchen  n Projekt anlegen  f Vollbild     
-r Neu laden  1-4 Bereich  q Beenden   up/down Auswählen  1/2
+r Neu laden  1-5 Bereich  q Beenden   up/down Auswählen  1/2

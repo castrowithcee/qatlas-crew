@@ -1,5 +1,5 @@
 qcrew                                                                                                           [?] help
-  [1 Projects]  2 Inbox   3 Sessions   4 Settings                                                                       
+  [1 Projects]  2 Inbox   3 Sessions   4 Settings   5 Setup                                                             
 ------------------------------------------------------------------------------------------------------------------------
 > Projects     [ + project ] [ remove ]  |   Sessions of alpha                    [ claude ] [ codex: setup ] [ shell ] 
   PROJECT  INBOX                         |   TOOL    TITLE            STATUS   SINCE                                    
@@ -35,6 +35,6 @@ qcrew                                                                           
                                          |                                                                              
                                          |                                                                              
                                          |                                                                              
-                                         |                                                                              
-warning: the tool codex is not installed or not in PATH: codex Next step: run 'qcrew setup' to install what qcrew needs.
-enter sessions  / search  n add project  f full screen  r reload  1-4 area  q quit                   up/down choose  1/2
+warning: the tool codex is not installed or not in PATH: codex Next step: run 'qcrew setup', or open the Setup area, to 
+install what qcrew needs.                                                                                               
+enter sessions  / search  n add project  f full screen  r reload  1-5 area  q quit                   up/down choose  1/2

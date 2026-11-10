@@ -265,7 +265,7 @@ func TestRemovingAProjectInUseNamesTheNextStep(t *testing.T) {
 	m := newTestModel(t, i18n.English, b, wideWidth, wideHeight)
 	send(m, "d", "y")
 	if !strings.Contains(m.failure, "the project has running sessions") ||
-		!strings.Contains(m.failure, "stop its sessions with t in the Sessions area") {
+		!strings.Contains(m.failure, "stop its sessions with e in the Sessions area") {
 		t.Fatalf("failure = %q", m.failure)
 	}
 	if _, ok := m.projByID["p-alpha"]; !ok {

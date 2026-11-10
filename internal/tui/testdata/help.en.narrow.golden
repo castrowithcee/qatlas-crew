@@ -1,5 +1,5 @@
 qcrew                                               [?] help
-  [1 Projects]  2 Inbox   3 Sessions   4 Settings           
+  [1 Projects]  2 Inbox   3 Sessions   4 Settings   5 Setup 
 ------------------------------------------------------------
 > Projects                         [ + project ] [ remove ] 
   #= Help ===============================================#  
@@ -21,10 +21,10 @@ qcrew                                               [?] help
   |   directories qcrew works in, see the project-guide  |  
   |   topic                                              |  
   | - qcrew session start|list|stop|attach: run agent    |  
-  | lines 1-16 of 44                                     |  
+  | lines 1-16 of 51                                     |  
   |                                                      |  
   | left/right topic  up/down scroll  esc/? close        |  
   #======================================================#  
                                                             
 enter sessions  / search  n add project  f full screen      
-r reload  1-4 area  q quit               up/down choose  1/2
+r reload  1-5 area  q quit               up/down choose  1/2

@@ -2,6 +2,8 @@ package tui
 
 import (
 	"context"
+	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -14,6 +16,7 @@ import (
 	"github.com/castrowithcee/qatlas-kit/uiprefs"
 
 	"github.com/castrowithcee/qatlas-crew/internal/control"
+	"github.com/castrowithcee/qatlas-crew/internal/session"
 )
 
 var epoch = time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC)
@@ -36,6 +39,10 @@ type fakeBackend struct {
 	removeErr error
 	started   []control.SessionStartArgs
 	startErr  error
+	// setup is what the service reports about the programs qcrew needs; setupErr fails the check.
+	setup      []control.SetupDependency
+	setupErr   error
+	setupReads int
 }
 
 func demoBackend() *fakeBackend {
@@ -49,8 +56,55 @@ func demoBackend() *fakeBackend {
 			{ID: "s2", Project: "p-alpha", Tool: "codex", Title: "write docs", Status: "waiting", Since: epoch.Add(-3 * time.Hour)},
 			{ID: "s3", Project: "p-beta", Tool: "shell", Title: "build watcher", Status: "idle", Since: epoch.Add(-5 * time.Second)},
 		},
+		setup: []control.SetupDependency{
+			{Name: session.Program, Installed: true, Version: "tmux 3.4", Source: "https://github.com/tmux/tmux/wiki/Installing"},
+			{Name: "claude", Install: "curl -fsSL https://claude.ai/install.sh | bash", Source: "https://code.claude.com/docs/en/setup"},
+			{Name: "codex", Source: "https://github.com/openai/codex"},
+		},
 	}
 }
+
+func (f *fakeBackend) SetupCheck(context.Context) ([]control.SetupDependency, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.setupReads++
+	return append([]control.SetupDependency(nil), f.setup...), f.setupErr
+}
+
+// markInstalled is what a successful installation does to the machine of the fake service.
+func (f *fakeBackend) markInstalled(name string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i := range f.setup {
+		if f.setup[i].Name == name {
+			f.setup[i].Installed, f.setup[i].Install, f.setup[i].Version = true, "", "v1.0"
+		}
+	}
+}
+
+// execRecorder stands in for handing the terminal to a program: it starts nothing and records the command.
+type execRecorder struct {
+	calls [][]string
+	// err is what the program "ended with"; nil is success, which installs the program on the fake service.
+	err error
+	b   *fakeBackend
+}
+
+func (r *execRecorder) run(cmd *exec.Cmd, done tea.ExecCallback) tea.Cmd {
+	r.calls = append(r.calls, append([]string(nil), cmd.Args...))
+	if r.err == nil && len(cmd.Args) == 4 {
+		r.b.markInstalled(cmd.Args[3])
+	}
+	return func() tea.Msg { return done(r.err) }
+}
+
+var execsOf = map[*Model]*execRecorder{}
+
+// exitCode is an error that carries the exit code of a program, as *exec.ExitError does.
+type exitCode int
+
+func (c exitCode) Error() string { return "exit status " + strconv.Itoa(int(c)) }
+func (c exitCode) ExitCode() int { return int(c) }
 
 func (f *fakeBackend) Projects(context.Context) ([]control.Project, error) {
 	f.mu.Lock()
@@ -133,6 +187,9 @@ func newTestModel(t *testing.T, lang i18n.Lang, b *fakeBackend, width, height in
 	m.Update(tea.WindowSizeMsg{Width: width, Height: height})
 	timersOf[m] = &timers{}
 	m.after = timersOf[m].start
+	execsOf[m] = &execRecorder{b: b}
+	m.setup.execProcess = execsOf[m].run
+	m.setup.executable = func() (string, error) { return "/fake/qcrew", nil }
 	load(t, m)
 	return m
 }

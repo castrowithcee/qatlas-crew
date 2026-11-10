@@ -63,13 +63,15 @@ func newTUICommand(access *serviceAccess) *cobra.Command {
 		Long: "tui opens the terminal interface, the same as qcrew without a command at a terminal. On the left it lists\n" +
 			"the projects with the number of open inbox entries; on the right it lists the sessions of the project\n" +
 			"under the cursor with tool, title, status and the time since the status last changed. Areas are switched\n" +
-			"with 1 to 4, or with tab and the left and right keys: Projects, Inbox (it follows in a later release),\n" +
-			"Sessions and Settings. f shows the pane of an area alone and back, r reads the service again, ? opens the\n" +
-			"help and q quits. The lists refresh every two seconds.\n\n" +
+			"with 1 to 5, or with tab and the left and right keys: Projects, Inbox (it follows in a later release),\n" +
+			"Sessions, Settings and Setup. Setup lists tmux, Claude Code and Codex; i installs the missing program under\n" +
+			"the cursor after asking, by handing the terminal to 'qcrew setup install'. f shows the pane of an area\n" +
+			"alone and back, r reads the service again, ? opens the help and q quits. The lists refresh every two\n" +
+			"seconds.\n\n" +
 			"n adds a project: type the path of a folder (~ is your home, tab completes, the list below shows its\n" +
 			"folders and .. goes up), then choose that folder or a new folder in it and the name. d removes the chosen\n" +
 			"project after asking; its folder stays. c, x and s start a Claude Code, Codex or shell session in the\n" +
-			"chosen project and mark it; t stops the session under the cursor after asking.\n\n" +
+			"chosen project and mark it; e stops the session under the cursor after asking.\n\n" +
 			"The mouse works too: click a tab, a button, a key in the header or footer, or a row, and turn the wheel.\n" +
 			"A click does what the key does, so a stop still asks first. With the mouse on, hold Shift to select text.\n\n" +
 			"It needs a terminal on both standard input and output, and starts the service when it is not running,\n" +

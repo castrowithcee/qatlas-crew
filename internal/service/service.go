@@ -21,6 +21,7 @@ import (
 	"github.com/castrowithcee/qatlas-crew/internal/inbox"
 	"github.com/castrowithcee/qatlas-crew/internal/project"
 	"github.com/castrowithcee/qatlas-crew/internal/session"
+	"github.com/castrowithcee/qatlas-crew/internal/setup"
 )
 
 // ErrRunning means another service already listens on the channel.
@@ -68,6 +69,8 @@ type Options struct {
 	tmux *session.Server
 	// now replaces the clock of the session status.
 	now func() time.Time
+	// setupEnv replaces where setup.check looks for the programs.
+	setupEnv setup.Env
 }
 
 // handler answers one operation with its arguments, which may be empty. A *control.Error answers with its
@@ -89,6 +92,7 @@ type server struct {
 	cancel    context.CancelFunc
 	replaced  func() (string, bool, error)
 	every     time.Duration
+	setupEnv  setup.Env
 
 	mu    sync.Mutex
 	conns map[net.Conn]struct{}
@@ -156,7 +160,7 @@ func Run(ctx context.Context, opts Options) error {
 	clock := func() time.Time { return now().UTC().Truncate(time.Second) }
 	s := &server{
 		log: logger, started: time.Now().UTC(), version: opts.Version,
-		cancel: cancel, replaced: opts.programReplaced, every: opts.watchEvery, conns: map[net.Conn]struct{}{},
+		cancel: cancel, replaced: opts.programReplaced, every: opts.watchEvery, setupEnv: opts.setupEnv, conns: map[net.Conn]struct{}{},
 		projects: projects, status: newTracker(clock, logger), inbox: inbox.NewStore(clock),
 		sessions: session.New(tmuxServer, session.WithDataDir(control.DataDir(home)), session.WithExecutable(opts.Program)),
 	}
@@ -177,6 +181,7 @@ func Run(ctx context.Context, opts Options) error {
 	s.addProjectOps()
 	s.addSessionOps()
 	s.addInboxOps()
+	s.addSetupOps()
 
 	s.log.Info("service started", "pid", os.Getpid(), "version", s.version, "config", s.projects.Path())
 	if opts.Ready != nil {

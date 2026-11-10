@@ -1,9 +1,9 @@
 qcrew                                                                                                          [?] Hilfe
-  [1 Projekte]  2 Postfach   3 Sessions   4 Einstellungen                                                               
+  [1 Projekte]  2 Postfach   3 Sessions   4 Einstellungen   5 Setup                                                     
 ------------------------------------------------------------------------------------------------------------------------
 > Projekte  [ + Projekt ] [ entfernen ]  |   Sessions von alpha                                                         
-  PROJEKT  POSTFACH                      |   Warnung: tmux is not installed. Nächster Schritt: 'qcrew setup' ausführen, 
-> alpha           3                      |   um zu installieren, was qcrew braucht.                                     
+  PROJEKT  POSTFACH                      |   Warnung: tmux is not installed. Nächster Schritt: 'qcrew setup' ausführen  
+> alpha           3                      |   oder den Bereich Einrichtung öffnen, um zu installieren, was qcrew braucht.
   beta            0                      |                                                                              
                                          |                                                                              
                                          |                                                                              
@@ -35,6 +35,6 @@ qcrew                                                                           
                                          |                                                                              
                                          |                                                                              
                                          |                                                                              
-                                         |                                                                              
-Warnung: tmux is not installed. Nächster Schritt: 'qcrew setup' ausführen, um zu installieren, was qcrew braucht.       
-enter Sessions  / Suchen  n Projekt anlegen  f Vollbild  r Neu laden  1-4 Bereich  q Beenden      up/down Auswählen  1/2
+Warnung: tmux is not installed. Nächster Schritt: 'qcrew setup' ausführen oder den Bereich Einrichtung öffnen, um zu    
+installieren, was qcrew braucht.                                                                                        
+enter Sessions  / Suchen  n Projekt anlegen  f Vollbild  r Neu laden  1-5 Bereich  q Beenden      up/down Auswählen  1/2

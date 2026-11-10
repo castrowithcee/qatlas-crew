@@ -1,5 +1,5 @@
 qcrew                                                                                               [esc] back  [?] help
-   1 Projects   2 Inbox  [3 Sessions]  4 Settings                                                                       
+   1 Projects   2 Inbox  [3 Sessions]  4 Settings   5 Setup                                                             
 ------------------------------------------------------------------------------------------------------------------------
   Projects     [ + project ] [ remove ]  | > Sessions of alpha                           [ claude ] [ codex ] [ shell ] 
   PROJECT  INBOX                         |   TOOL    TITLE            STATUS   SINCE                                    
@@ -37,4 +37,4 @@ qcrew                                                                           
                                          |                                                                              
                                          |                                                                              
                                          |                                                                              
-/ search  t stop session  c/x/s start  f full screen  r reload  1-4 area  q quit                     up/down choose  2/3
+/ search  e stop session  c/x/s start  f full screen  r reload  1-5 area  q quit                     up/down choose  2/3

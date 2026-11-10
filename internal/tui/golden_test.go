@@ -89,9 +89,12 @@ func TestGoldenScreens(t *testing.T) {
 		{"inbox", goldenBackend, []string{"2"}},
 		{"full-projects", goldenBackend, []string{"f"}},
 		{"full-sessions", goldenBackend, []string{"enter", "f"}},
-		{"stop", goldenBackend, []string{"enter", "t"}},
+		{"stop", goldenBackend, []string{"enter", "e"}},
 		{"settings", goldenBackend, []string{"4"}},
 		{"help", goldenBackend, []string{"?"}},
+		{"setup", goldenBackend, []string{"5"}},
+		{"setup-install", goldenBackend, []string{"5", "down", "i"}},
+		{"setup-result", goldenBackend, []string{"5", "down", "i", "y"}},
 		{"tmux-missing", func() *fakeBackend { return missing }, nil},
 	}
 	for _, s := range screens {

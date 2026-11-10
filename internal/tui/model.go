@@ -26,6 +26,8 @@ const (
 	areaInbox    kittui.AreaID = "inbox"
 	areaSessions kittui.AreaID = "sessions"
 	areaSettings kittui.AreaID = "settings"
+	// areaSetup is the last area, so the keys of the others stay as they were.
+	areaSetup kittui.AreaID = "setup"
 )
 
 func (m *Model) areas() []kittui.Area {
@@ -34,6 +36,7 @@ func (m *Model) areas() []kittui.Area {
 		{ID: areaInbox, Title: textAreaInbox},
 		{ID: areaSessions, Title: textAreaSessions},
 		{ID: areaSettings, Title: kittui.TextSettingsTitle},
+		{ID: areaSetup, Title: textAreaSetup},
 	}
 	for i := range list {
 		list[i].Icon = areaIcon(m.icons, list[i].ID)
@@ -43,14 +46,14 @@ func (m *Model) areas() []kittui.Area {
 
 // areaIDs are the IDs of the areas a start can name.
 func areaIDs() []kittui.AreaID {
-	return []kittui.AreaID{areaProjects, areaInbox, areaSessions, areaSettings}
+	return []kittui.AreaID{areaProjects, areaInbox, areaSessions, areaSettings, areaSetup}
 }
 
 // The icon sets of the icons preference. An icon stands beside the name, never in its place.
 var iconSets = map[string]map[kittui.AreaID]string{
-	uiprefs.IconsUnicode: {areaProjects: "▤", areaInbox: "✉", areaSessions: "▶", areaSettings: "⚙"},
+	uiprefs.IconsUnicode: {areaProjects: "▤", areaInbox: "✉", areaSessions: "▶", areaSettings: "⚙", areaSetup: "⚒"},
 	uiprefs.IconsNerdFont: {areaProjects: "", areaInbox: "", areaSessions: "",
-		areaSettings: ""},
+		areaSettings: "", areaSetup: "\uf019"},
 }
 
 func areaIcon(set string, id kittui.AreaID) string { return iconSets[set][id] }
@@ -88,6 +91,8 @@ type config struct {
 	// prefs are the whole preferences as loaded; savePrefs writes them, nil when they cannot be saved.
 	prefs     uiprefs.Prefs
 	savePrefs func(uiprefs.Prefs) error
+	// executable names the qcrew program that runs an installation; nil takes os.Executable.
+	executable func() (string, error)
 }
 
 // tickMsg starts a periodic refresh.
@@ -139,6 +144,7 @@ type Model struct {
 	notice, result string
 
 	set      *settingsState
+	setup    *setupState
 	modal    *modal
 	stopping bool
 	// add is the open dialog that adds a project; home resolves "~" in it and folders reads its folders.
@@ -199,6 +205,9 @@ func newModel(c config) (*Model, error) {
 	if m.set, err = m.newSettings(); err != nil {
 		return nil, err
 	}
+	if m.setup, err = m.newSetup(c.executable); err != nil {
+		return nil, err
+	}
 	if !m.restyle() {
 		m.notice = text.Lookup(kittui.TextWarning, text.Lookup(kittui.TextThemeUnknown, c.theme, kittui.ThemeTerminal))
 	}
@@ -250,7 +259,7 @@ func (m *Model) restyle() bool {
 }
 
 func (m *Model) Init() tea.Cmd {
-	cmds := []tea.Cmd{m.reload(), m.tick()}
+	cmds := []tea.Cmd{m.reload(), m.tick(), m.setupReload()}
 	if m.themes.AsksTerminalColors(m.theme, m.profile) {
 		cmds = append(cmds, tea.RequestForegroundColor, tea.RequestBackgroundColor)
 	}
@@ -285,6 +294,11 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		return tea.Batch(m.reload(), m.tick())
 	case refreshMsg:
 		m.apply(msg)
+		return m.setupAfterRefresh()
+	case setupMsg:
+		return m.applySetup(msg)
+	case installDoneMsg:
+		return m.installDone(msg)
 	case stopMsg:
 		return m.applyStop(msg)
 	case addMsg:
@@ -479,6 +493,8 @@ func (m *Model) input() kittui.InputFocus {
 		return m.projList.Input()
 	case areaSessions:
 		return m.sessList.Input()
+	case areaSetup:
+		return m.setup.list.Input()
 	}
 	return kittui.InputNavigation
 }
@@ -490,6 +506,8 @@ func (m *Model) focusedList() *kittui.List {
 		return m.projList
 	case areaSessions:
 		return m.sessList
+	case areaSetup:
+		return m.setup.list
 	}
 	return nil
 }
@@ -542,7 +560,7 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 			return nil
 		case actReload:
 			clear(m.toolMissing)
-			return m.reload()
+			return tea.Batch(m.reload(), m.setupReload())
 		case actAdd:
 			return m.beginAdd()
 		case actRemove:
@@ -550,6 +568,14 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 		case actClaude, actCodex, actShell:
 			tool, _ := toolOf(id)
 			return m.startTool(tool)
+		case actInstall:
+			return m.beginInstall()
+		case kittui.ActionLogFollow, kittui.ActionLogNextMatch, kittui.ActionLogPrevMatch, kittui.ActionLogWrap,
+			kittui.ActionLogTimestamps:
+			if m.area == areaSetup {
+				m.setup.log.Act(id)
+			}
+			return nil
 		case actFull:
 			m.toggleFull()
 			return nil
@@ -574,8 +600,13 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 		}
 	}
 	if l := m.focusedList(); l != nil && m.focus() != kittui.ZoneTabs {
-		if open, _ := l.Update(msg); open != "" && m.area == areaProjects {
-			return m.openProject()
+		if open, _ := l.Update(msg); open != "" {
+			switch m.area {
+			case areaProjects:
+				return m.openProject()
+			case areaSetup:
+				return m.beginInstall()
+			}
 		}
 	}
 	return nil
@@ -584,7 +615,7 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 // toggleFull shows the pane of the active area alone, or the columns again. The Settings area is the whole
 // screen already and has nothing to toggle.
 func (m *Model) toggleFull() {
-	if m.area != areaSettings {
+	if m.area != areaSettings && m.area != areaSetup {
 		m.full = !m.full
 	}
 }
@@ -614,7 +645,7 @@ func (m *Model) enter(area kittui.AreaID) tea.Cmd {
 	if area == areaSettings {
 		m.setZone(kittui.ZoneForm)
 	}
-	return nil
+	return m.setupEntered()
 }
 
 // zones are the focus zones of the screen in their fixed order: the tab line and the content. The settings
@@ -687,6 +718,7 @@ func (m *Model) syncFocus() {
 	rows := m.focus() == kittui.ZoneRows
 	m.projList.SetFocused(rows && m.area == areaProjects)
 	m.sessList.SetFocused(rows && m.area == areaSessions)
+	m.setup.list.SetFocused(rows && m.area == areaSetup)
 }
 
 // marks are the status marks of the header.
@@ -713,6 +745,8 @@ func (m *Model) message() *kittui.Message {
 		return &kittui.Message{Kind: kittui.MessageError, Text: m.failure}
 	case m.sessFailure != "":
 		return &kittui.Message{Kind: kittui.MessageError, Text: m.sessFailure}
+	case m.area == areaSetup && m.setup.failure != "":
+		return &kittui.Message{Kind: kittui.MessageError, Text: m.setup.failure}
 	case m.missing != "":
 		return &kittui.Message{Kind: kittui.MessageWarning, Text: m.missingText()}
 	case m.notice != "":
@@ -759,8 +793,12 @@ func (m *Model) footer() []kittui.Hint {
 			{Action: actRight, Label: textKeyNextArea, Priority: 3},
 			{Action: actNext, Label: textKeyZone, Priority: 3}}, common...)
 	}
-	common = append([]kittui.Hint{full}, common...)
+	if m.area != areaSetup {
+		common = append([]kittui.Hint{full}, common...)
+	}
 	switch m.area {
+	case areaSetup:
+		return m.setupFooter(common, nav)
 	case areaProjects:
 		common = append(m.projectFooter(m.area), common...)
 		return m.listFooter(m.projList, len(m.projects), textKeySessions, common, nav)

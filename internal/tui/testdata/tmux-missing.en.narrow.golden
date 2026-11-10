@@ -1,5 +1,5 @@
 qcrew                                               [?] help
-  [1 Projects]  2 Inbox   3 Sessions   4 Settings           
+  [1 Projects]  2 Inbox   3 Sessions   4 Settings   5 Setup 
 ------------------------------------------------------------
 > Projects                         [ + project ] [ remove ] 
   PROJECT  INBOX                                            
@@ -12,7 +12,8 @@ qcrew                                               [?] help
                                                             
   Sessions of alpha                                         
   warning: tmux is not installed. Next step: run 'qcrew     
-  setup' to install what qcrew needs.                       
+  setup', or open the Setup area, to install what qcrew     
+  needs.                                                    
                                                             
                                                             
                                                             
@@ -23,8 +24,7 @@ qcrew                                               [?] help
                                                             
                                                             
                                                             
-                                                            
-warning: tmux is not installed. Next step: run 'qcrew setup'
-to install what qcrew needs.                                
+warning: tmux is not installed. Next step: run 'qcrew       
+setup', or open the Setup area, to install what qcrew needs.
 enter sessions  / search  n add project  f full screen      
-r reload  1-4 area  q quit               up/down choose  1/2
+r reload  1-5 area  q quit               up/down choose  1/2
