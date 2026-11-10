@@ -86,3 +86,29 @@ func TestTomlString(t *testing.T) {
 		t.Errorf("tomlString = %s", got)
 	}
 }
+
+func TestReadScreen(t *testing.T) {
+	cases := []struct {
+		name  string
+		lines []string
+		ready bool
+		err   string
+	}{
+		{"empty", nil, false, ""},
+		{"loading", []string{"", "starting"}, false, ""},
+		{"ready footer", []string{"› ", "", "  ? for shortcuts      100% context left", ""}, true, ""},
+		{"send hint", []string{"› hello", "  ⏎ send   ⌃J newline"}, true, ""},
+		{"footer far above is no footer", []string{"? for shortcuts", "a", "b", "c", "d"}, false, ""},
+		{"error line", []string{"› go", "■ stream error: connection lost", "", "  ? for shortcuts"}, true, "■ stream error: connection lost"},
+		{"unexpected status", []string{"■ Unexpected Status 500"}, false, "■ Unexpected Status 500"},
+		{"the last error line counts", []string{"■ error one", "x", "■ error two"}, false, "■ error two"},
+		{"glyph without an error word", []string{"■ stopped"}, false, ""},
+		{"error word without the glyph", []string{"an error occurred"}, false, ""},
+		{"old error far above", append([]string{"■ error old"}, strings.Split(strings.Repeat("x\n", 15), "\n")...), false, ""},
+	}
+	for _, c := range cases {
+		if ready, line := ReadScreen(c.lines); ready != c.ready || line != c.err {
+			t.Errorf("%s: %v, %q; want %v, %q", c.name, ready, line, c.ready, c.err)
+		}
+	}
+}

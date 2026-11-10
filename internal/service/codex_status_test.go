@@ -81,11 +81,11 @@ func TestCodexQuestionIsNotRunning(t *testing.T) {
 	}
 }
 
-func TestCodexStartsIdle(t *testing.T) {
+func TestCodexStartsRunning(t *testing.T) {
 	tr, _ := newTestTracker()
 	x := codexSession(statusRunning)
 	status, since, _ := tr.view(x)
-	if status != statusIdle || !since.Equal(t0) {
+	if status != statusRunning || !since.Equal(t0) {
 		t.Errorf("a started Codex session: %s since %v", status, since)
 	}
 	if got := tr.signals(x); got != control.SignalsFallback {
@@ -196,7 +196,7 @@ func TestCodexFallbackAndHooks(t *testing.T) {
 		t.Error("a fallback session is not watched")
 	}
 	clock.Advance(time.Second)
-	if ch := tr.bell(x); !ch.changed() || ch.To != statusWaiting || ch.From != statusIdle {
+	if ch := tr.bell(x); !ch.changed() || ch.To != statusWaiting || ch.From != statusRunning {
 		t.Errorf("bell: %+v", ch)
 	}
 	if ch := tr.bell(x); ch.changed() {
@@ -260,5 +260,65 @@ func TestAgentSessionIsBoundOncePerId(t *testing.T) {
 	tr.forgetAgent(x)
 	if !tr.agentChanged(x, "1a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9") {
 		t.Error("a failed record is not retried")
+	}
+}
+
+func TestCodexScreen(t *testing.T) {
+	const line = "■ stream error: lost"
+	tr, clock := newTestTracker()
+	x := codexSession(statusRunning)
+	tr.view(x)
+	if !tr.screenWatch(x) || !tr.fallbackWatch() {
+		t.Fatal("a starting session is not watched")
+	}
+	// Nothing to see yet: still starting.
+	if ch := tr.screen(x, false, ""); ch.changed() {
+		t.Errorf("an empty screen: %+v", ch)
+	}
+	clock.Advance(time.Second)
+	if ch := tr.screen(x, true, ""); !ch.changed() || ch.To != statusIdle || ch.From != statusRunning {
+		t.Errorf("ready: %+v", ch)
+	}
+	// A new error line is an error in the fallback; the same line at the next look changes nothing.
+	if ch := tr.screen(x, true, line); !ch.changed() || ch.To != statusError {
+		t.Errorf("a new error line: %+v", ch)
+	}
+	if ch := tr.screen(x, true, line); ch.changed() {
+		t.Errorf("an old error line: %+v", ch)
+	}
+	// The first look at a session only notes the line.
+	tr3, _ := newTestTracker()
+	z := codexSession(statusRunning)
+	if ch := tr3.screen(z, true, line); ch.changed() && ch.To == statusError {
+		t.Errorf("the error line of the first look: %+v", ch)
+	}
+
+	// An event first has the precedence over the screen: a session that ran stays running.
+	tr2, _ := newTestTracker()
+	y := codexSession(statusRunning)
+	tr2.apply(y, event("UserPromptSubmit"))
+	if ch := tr2.screen(y, true, ""); ch.changed() {
+		t.Errorf("ready after an event: %+v", ch)
+	}
+	// With hooks an error line counts only after a failed model request, and then at once.
+	tr2.screen(y, true, "")
+	if ch := tr2.screen(y, true, line); ch.changed() {
+		t.Errorf("an error line with hooks and no failure: %+v", ch)
+	}
+	if tr2.screenWatch(y) {
+		t.Error("a session with hooks and no pending failure is watched")
+	}
+	tr2.apply(y, event("PostModelRequest", typed("failed")))
+	if !tr2.screenWatch(y) {
+		t.Error("a pending failure is not watched")
+	}
+	if ch := tr2.screen(y, true, line); ch.changed() {
+		t.Errorf("the same line as before the failure: %+v", ch)
+	}
+	if ch := tr2.screen(y, true, line+" again"); !ch.changed() || ch.To != statusError {
+		t.Errorf("a new error line after a failure: %+v", ch)
+	}
+	if got := tr2.failDue(failedRequestAfter); got != nil {
+		t.Errorf("the failure was counted twice: %+v", got)
 	}
 }

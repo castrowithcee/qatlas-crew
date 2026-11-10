@@ -29,6 +29,7 @@ const maxHistory = 64
 const (
 	eventPaneDead = "pane-dead"
 	eventBell     = "qcrew.bell"
+	eventScreen   = "qcrew.screen"
 )
 
 // failedRequestAfter is how long a failed model request of Codex stands without a further event before the
@@ -74,6 +75,13 @@ type sessionState struct {
 	// hooks is set for a Codex session from its first hook event on; before that, and without hooks, the
 	// coarser signals of the session's flags are what the status follows.
 	hooks bool
+	// booted is set once a Codex session showed that it waits for input, on the screen or by an event; until
+	// then it is starting and running.
+	booted bool
+	// scanned is set after the first look at the screen of a Codex session; screenErr is the error line the
+	// last look found, so that only a new one counts.
+	scanned   bool
+	screenErr string
 	// failedAt is when a failed model request was reported and nothing followed yet; zero otherwise.
 	failedAt time.Time
 	// agent is the id of the tool's own session last recorded in the window.
@@ -113,12 +121,8 @@ func (t *tracker) get(x session.Session) *sessionState {
 	if !ok {
 		st = &sessionState{project: x.Project, tool: x.Tool, reportsEnd: adapter.ReportsEnd(x.Tool), status: x.Status,
 			since: x.Started}
-		switch {
-		case x.Status == statusExited:
+		if x.Status == statusExited {
 			st.since = t.now()
-		case x.Tool == adapter.Codex:
-			// Codex says nothing before its first turn; waiting at its prompt is idle.
-			st.status = statusIdle
 		}
 		t.states[x.ID] = st
 	}
@@ -296,6 +300,7 @@ func claudeStatus(ev control.EventPushArgs) (string, bool) {
 // first hook event ends the fallback for the session. Any hook event ends the wait for a follow-up of a
 // failed model request.
 func (t *tracker) applyCodex(x session.Session, ev control.EventPushArgs, st *sessionState, ch change) change {
+	st.booted = true
 	if ev.Source == control.EventSourceNotify {
 		if st.hooks {
 			return ch
@@ -415,7 +420,7 @@ func (t *tracker) fallbackWatch() bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	for _, st := range t.states {
-		if st.tool == adapter.Codex && !st.hooks && !st.dead && st.status != statusExited {
+		if st.tool == adapter.Codex && (!st.hooks || !st.booted) && !st.dead && st.status != statusExited {
 			return true
 		}
 	}
@@ -439,4 +444,47 @@ func (t *tracker) forgetAgent(x session.Session) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.get(x).agent = ""
+}
+
+// screenWatch reports whether the screen of a Codex session is worth a look: while it starts, in the fallback,
+// and while a failed model request waits for its follow-up.
+func (t *tracker) screenWatch(x session.Session) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	st := t.get(x)
+	return x.Tool == adapter.Codex && !st.dead && st.status != statusExited &&
+		(!st.booted || !st.hooks || !st.failedAt.IsZero())
+}
+
+// screen takes in what a look at the screen of a Codex session showed (see codex.ReadScreen). A session that
+// starts becomes idle when the screen shows it waits for input; an event that came first has the precedence.
+// An error line that was not there at the last look is an error in the fallback, and with hooks only if a
+// failed model request waits for its follow-up. The first look only notes the line. The returned change
+// carries the move of the status.
+func (t *tracker) screen(x session.Session, ready bool, errLine string) change {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	st := t.get(x)
+	ch := change{ID: x.ID, Project: x.Project, From: st.status, To: st.status, Event: eventScreen, Dead: st.dead}
+	if st.dead || x.Tool != adapter.Codex {
+		return ch
+	}
+	if ready && !st.booted {
+		st.booted = true
+		if st.status == statusRunning {
+			t.set(x.ID, st, statusIdle, eventScreen)
+		}
+	}
+	fresh := st.scanned && errLine != "" && errLine != st.screenErr
+	st.scanned, st.screenErr = true, errLine
+	switch {
+	case !fresh:
+	case !st.hooks:
+		t.set(x.ID, st, statusError, eventScreen)
+	case !st.failedAt.IsZero():
+		st.failedAt = time.Time{}
+		t.set(x.ID, st, statusError, eventScreen)
+	}
+	ch.To = st.status
+	return ch
 }

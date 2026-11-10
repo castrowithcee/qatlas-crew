@@ -200,12 +200,16 @@ func TestCodexStatusWithTheRealTool(t *testing.T) {
 			})
 		}
 
-		until("codex to show its prompt", 60*time.Second, func() bool { return current().Status == "idle" && strings.Contains(screen(), "›") })
+		until("codex to show its prompt", 60*time.Second, func() bool { return strings.Contains(screen(), "›") })
+		// The screen features that mean ready and error are unverified; the log shows the real screen.
+		t.Logf("SCREEN %s after the start (status %q):\n%s", name, current().Status, screen())
+		until("the status idle once the screen shows readiness", 10*time.Second, func() bool { return current().Status == "idle" })
 		if got := current().Signals; got != "fallback" {
 			t.Errorf("%s: signals before the first turn: %q, want fallback", name, got)
 		}
 		prompt("Run the shell command `touch qcrew-ext-marker` and nothing else.")
 		approval()
+		t.Logf("SCREEN %s at the approval question (status %q):\n%s", name, current().Status, screen())
 		t.Logf("RESULT %s: waiting seen within 2 s of the approval dialog", name)
 		if wantSignals == "hooks" {
 			if got := current().Signals; got != "hooks" {

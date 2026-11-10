@@ -85,7 +85,7 @@ func fakeCodex(args []string, in io.Reader, out io.Writer) int {
 		}
 		fmt.Fprintf(record, "%s exit=%d output=%d\n", label, code, got.Len())
 	}
-	fmt.Fprintln(out, "fake codex ready")
+	fmt.Fprintln(out, "fake codex ready\n  ? for shortcuts")
 	sc := bufio.NewScanner(in)
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())
@@ -195,7 +195,7 @@ func TestCodexReportsTheStatus(t *testing.T) {
 		}
 		code, out, errOut := run(t, "session", "start", "--project", "app", "--tool", "codex", "--output", "json")
 		var s codexSessionJSON
-		if code != 0 || json.Unmarshal([]byte(out), &s) != nil || s.Status != "idle" || s.Signals != "fallback" {
+		if code != 0 || json.Unmarshal([]byte(out), &s) != nil || (s.Status != "running" && s.Status != "idle") || s.Signals != "fallback" {
 			t.Fatalf("start: code=%d out=%q err=%q", code, out, errOut)
 		}
 		waitFor(t, "the fake codex to start", func() bool { _, err := os.Stat(filepath.Join(outDir, "env")); return err == nil })

@@ -85,13 +85,15 @@ status line that reports the context fill is added only if you have none of your
 
 **Codex.** qcrew starts `codex --no-daemon` with flags for the session only and writes nothing to
 `~/.codex`. Its status comes from Codex hooks, which call `qcrew hook codex`; they report the session through
-the variable `QCREW_SESSION` that qcrew gives the tool. qcrew does not set up the hooks yet: until the first hook event of
-a session (`signals` is then `hooks`, shown by `session list` for Codex sessions), a coarser fallback reports
-only through the session's flags (`signals` is `fallback`): the notify program marks the end of a turn as `idle`,
-and the terminal bell of a prompt marks `waiting` with a `permission` entry whatever the prompt asks. The
-fallback cannot tell a question from a permission, cannot see failures, and ends `waiting` only when you answer
-through qcrew or the turn ends. A session is `idle` from its start. With hooks, a failed model request is
-`error` unless an event follows within ten seconds; `exited` follows the end of the program as tmux shows it.
+the variable `QCREW_SESSION` that qcrew gives the tool. qcrew does not set up the hooks yet: until the first
+hook event of a session (`signals` is then `hooks`, shown by `session list` for Codex sessions), a coarser
+fallback reports through the session's flags and the screen (`signals` is `fallback`). A session is `running`
+while it starts and `idle` once its screen shows that it waits for input; the notify program marks the end of a
+turn as `idle`; the terminal bell of a prompt marks `waiting` with a `permission` entry whatever the prompt
+asks; a new error line on the screen is `error`. The fallback cannot tell a question from a permission, and
+ends `waiting` only when you answer through qcrew or the turn ends. With hooks, a failed model request is
+`error` as soon as the screen shows an error line, else after ten seconds without a further event; `exited`
+follows the end of the program as tmux shows it. The screen features are matched on the last lines only.
 The Codex session id is recorded in the window option `@qcrew-agent-session` once Codex reports it.
 
 ## Inbox

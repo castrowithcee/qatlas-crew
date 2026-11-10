@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/castrowithcee/qatlas-crew/internal/adapter"
+	"github.com/castrowithcee/qatlas-crew/internal/adapter/codex"
 	"github.com/castrowithcee/qatlas-crew/internal/control"
 	"github.com/castrowithcee/qatlas-crew/internal/inbox"
 	"github.com/castrowithcee/qatlas-crew/internal/session"
@@ -49,7 +51,29 @@ func (s *server) refreshSessions(ctx context.Context) ([]session.Session, error)
 	// The inbox looks at tmux for the screen lines, which must not happen under the mirror's lock.
 	s.noteChanges(ctx, changes)
 	s.takeBells(ctx, list)
+	s.scanScreens(ctx, list)
 	return list, nil
+}
+
+// screenLines is how many screen lines a look at a Codex session reads.
+const screenLines = 30
+
+// scanScreens looks at the screen of the Codex sessions that need it: it lets a starting session become idle
+// and an error line show as an error, with an inbox entry that carries the line.
+func (s *server) scanScreens(ctx context.Context, list []session.Session) {
+	for _, x := range list {
+		if x.Tool != adapter.Codex || x.Status == session.StatusExited || !s.status.screenWatch(x) {
+			continue
+		}
+		out, err := s.sessions.Capture(ctx, x.ID, screenLines)
+		if err != nil {
+			continue
+		}
+		ready, errLine := codex.ReadScreen(strings.Split(out, "\n"))
+		if ch := s.status.screen(x, ready, errLine); ch.changed() && ch.To == statusError && !ch.Dead {
+			s.openEntry(ctx, x.Project, x.ID, inbox.KindError, errLine)
+		}
+	}
 }
 
 // takeBells lets the sessions whose window rang move to waiting and the inbox follow, and takes the ring in so

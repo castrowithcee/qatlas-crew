@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/castrowithcee/qatlas-crew/internal/control"
+	"github.com/castrowithcee/qatlas-crew/internal/session"
 	"github.com/castrowithcee/qatlas-crew/internal/testenv"
 )
 
@@ -61,7 +62,7 @@ func TestCodexSessionOverTheChannel(t *testing.T) {
 	clock := testenv.NewFakeClock(time.Date(2030, 1, 2, 3, 4, 5, 0, time.UTC))
 	r := newInboxRig(t, clock)
 	s := r.newCodex()
-	if s.Status != "idle" || s.Signals != control.SignalsFallback {
+	if s.Status != "running" || s.Signals != control.SignalsFallback {
 		t.Fatalf("a started session: %+v", s)
 	}
 	r.waitFor("the tool on the screen", func() bool { return strings.Contains(r.screen(s), "fake codex ready") })
@@ -113,9 +114,14 @@ func TestCodexSessionOverTheChannel(t *testing.T) {
 	hook(control.EventPushArgs{Event: "PostModelRequest", Type: "failed", Text: "rate limited"})
 	clock.Advance(failedRequestAfter + time.Second)
 	r.waitFor("the status error", func() bool { return r.status(s).Status == "error" })
-	if e := r.openEntry(); e.Kind != "error" {
-		t.Errorf("entry for the failed request: %+v", e)
-	}
+	r.waitFor("the error entry", func() bool {
+		for _, e := range r.entries(false) {
+			if e.Status == "open" && e.Kind == "error" {
+				return true
+			}
+		}
+		return false
+	})
 	hook(control.EventPushArgs{Event: "UserPromptSubmit"})
 	if r.status(s).Status != "running" {
 		t.Errorf("after a new prompt: %s", r.status(s).Status)
@@ -147,4 +153,74 @@ func TestCodexSessionOverTheChannel(t *testing.T) {
 	if got := r.status(s); got.Signals != control.SignalsHooks {
 		t.Errorf("signals: %q", got.Signals)
 	}
+}
+
+// fakeCodexScript puts a codex on the PATH that runs the given shell script.
+func fakeCodexScript(t *testing.T, script string) {
+	t.Helper()
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "codex"), []byte("#!/bin/sh\n"+script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
+}
+
+func (r *inboxRig) type_(s control.Session, line string) {
+	r.t.Helper()
+	target := "=" + session.SessionName(r.p.ID) + ":" + session.WindowName(s.ID)
+	if _, err := r.srv.Run("send-keys", "-t", target, "-l", line); err != nil {
+		r.t.Fatal(err)
+	}
+	if _, err := r.srv.Run("send-keys", "-t", target, "Enter"); err != nil {
+		r.t.Fatal(err)
+	}
+}
+
+func (r *inboxRig) waitStatus(s control.Session, want string) {
+	r.t.Helper()
+	r.waitFor("the status "+want, func() bool { return r.status(s).Status == want })
+}
+
+// A starting Codex session is running until its screen shows that it waits for input.
+func TestCodexScreenShowsReady(t *testing.T) {
+	fakeCodexScript(t, "sleep 1.5\necho '  ? for shortcuts'\nexec cat\n")
+	r := newInboxRig(t, testenv.NewFakeClock(time.Date(2030, 1, 2, 3, 4, 5, 0, time.UTC)))
+	s := r.newCodex()
+	if got := r.status(s).Status; got != "running" {
+		t.Fatalf("right after the start: %s", got)
+	}
+	r.waitStatus(s, "idle")
+}
+
+// An error line that appears on the screen is an error in the fallback and, with hooks, after a failed model
+// request, with an inbox entry that carries the line.
+func TestCodexScreenShowsErrors(t *testing.T) {
+	fakeCodexScript(t, "echo '  ? for shortcuts'\nread a\necho '■ stream error: one'\nread b\necho '■ stream error: two'\nexec cat\n")
+	r := newInboxRig(t, testenv.NewFakeClock(time.Date(2030, 1, 2, 3, 4, 5, 0, time.UTC)))
+
+	fb := r.newCodex()
+	r.waitStatus(fb, "idle")
+	r.type_(fb, "go")
+	r.waitStatus(fb, "error")
+	r.waitFor("the error entry", func() bool {
+		for _, e := range r.entries(false) {
+			if e.Session == fb.ID && e.Kind == "error" && strings.Contains(e.Text, "stream error: one") {
+				return true
+			}
+		}
+		return false
+	})
+
+	hk := r.newCodex()
+	r.waitStatus(hk, "idle")
+	r.pushCodex(hk, control.EventSourceHook, control.EventPushArgs{Event: "UserPromptSubmit"})
+	r.type_(hk, "go")
+	r.waitFor("the first error line on the screen", func() bool { return strings.Contains(r.screen(hk), "stream error: one") })
+	time.Sleep(1500 * time.Millisecond)
+	if got := r.status(hk).Status; got != "running" {
+		t.Fatalf("an error line with hooks and no failed request: %s", got)
+	}
+	r.pushCodex(hk, control.EventSourceHook, control.EventPushArgs{Event: "PostModelRequest", Type: "failed"})
+	r.type_(hk, "again")
+	r.waitStatus(hk, "error")
 }
