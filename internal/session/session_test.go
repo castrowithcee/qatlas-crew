@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os/exec"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -154,5 +155,17 @@ func TestWithoutTmuxThereAreNoSessions(t *testing.T) {
 	}
 	if _, err := m.Capture(context.Background(), "x", -1); !errors.Is(err, ErrInvalid) {
 		t.Errorf("Capture with negative lines: %v", err)
+	}
+}
+
+func TestNewUUID(t *testing.T) {
+	v4 := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+	seen := map[string]bool{}
+	for range 50 {
+		id, err := newUUID()
+		if err != nil || !v4.MatchString(id) || seen[id] {
+			t.Fatalf("newUUID = %q, %v", id, err)
+		}
+		seen[id] = true
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net"
@@ -44,7 +45,13 @@ func TestHelperProcess(t *testing.T) {
 	serviceCommand = helperCommand
 	switch mode {
 	case "service":
+		serviceProgram = func() (string, error) { return os.Getenv(programEnv), nil }
 		os.Exit(Run([]string{"service", "run"}, os.Stdout, os.Stderr))
+	case "hook":
+		// A hook command reaches here through the wrapper script that stands for the qcrew program.
+		os.Exit(Run(flag.Args(), os.Stdout, os.Stderr))
+	case "claude":
+		os.Exit(fakeClaude(flag.Args(), os.Stdin, os.Stdout))
 	case "start":
 		os.Exit(Run([]string{"service", "start", "--output", "json"}, os.Stdout, os.Stderr))
 	case "dial":

@@ -13,9 +13,11 @@ import (
 )
 
 var sampleSessions = []control.Session{
-	{ID: "aaaaaaaaaaa2", Project: "abcdefghijk2", Tool: "claude", Title: "claude", Status: "running",
+	{ID: "aaaaaaaaaaa2", Project: "abcdefghijk2", Tool: "claude", Title: "claude", Status: "waiting",
+		Since: time.Date(2026, 1, 2, 3, 9, 15, 0, time.UTC), ContextPercent: new(42),
 		StartedAt: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)},
 	{ID: "bbbbbbbbbbb3", Project: "mnopqrstuvw7", Tool: "shell", Title: "build log", Status: "exited",
+		Since:     time.Date(2026, 2, 3, 5, 6, 7, 0, time.UTC),
 		StartedAt: time.Date(2026, 2, 3, 4, 5, 6, 0, time.UTC)},
 }
 

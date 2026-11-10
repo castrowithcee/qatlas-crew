@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -56,6 +57,8 @@ const (
 	OpSessionList    = "session.list"
 	OpSessionStop    = "session.stop"
 	OpSessionCapture = "session.capture"
+
+	OpEventPush = "event.push"
 )
 
 // The codes of a failed answer. They are fixed words, never text built from a request.
@@ -151,14 +154,18 @@ type ProjectListResult struct {
 	Projects []Project `json:"projects"`
 }
 
-// Session is an agent session as the channel carries it. Status is running or exited.
+// Session is an agent session as the channel carries it. Status is running, waiting, idle, error or exited;
+// Since is when it took that status. ContextPercent is how full the tool's context window is, and absent
+// while unknown.
 type Session struct {
-	ID        string    `json:"id"`
-	Project   string    `json:"project"`
-	Tool      string    `json:"tool"`
-	Title     string    `json:"title"`
-	Status    string    `json:"status"`
-	StartedAt time.Time `json:"started_at"`
+	ID             string    `json:"id"`
+	Project        string    `json:"project"`
+	Tool           string    `json:"tool"`
+	Title          string    `json:"title"`
+	Status         string    `json:"status"`
+	Since          time.Time `json:"since"`
+	ContextPercent *int      `json:"context_percent,omitempty"`
+	StartedAt      time.Time `json:"started_at"`
 }
 
 // SessionStartArgs are the arguments of OpSessionStart. Project is the id or the name of a project; an empty
@@ -195,6 +202,93 @@ type SessionCaptureArgs struct {
 type SessionCaptureResult struct {
 	ID   string `json:"id"`
 	Text string `json:"text"`
+}
+
+// sessionID is the form of a session id: 12 characters of base32 in lower case.
+var sessionID = regexp.MustCompile(`^[a-z2-7]{12}$`)
+
+// ValidSessionID reports whether id has the form of a session id.
+func ValidSessionID(id string) bool { return sessionID.MatchString(id) }
+
+// The source of an event that a tool's hook reports.
+const EventSourceHook = "hook"
+
+// The events that qcrew itself derives from what a hook received. Their names contain a dot, which no name of
+// a tool's own event has.
+const (
+	// EventHookError means a hook ran but its payload could not be read.
+	EventHookError = "qcrew.hook-error"
+	// EventContext carries the fill of the context window and changes no status.
+	EventContext = "qcrew.context"
+)
+
+// The longest values of an event; names and types in bytes, the text in characters.
+const (
+	MaxEventName  = 64
+	MaxEventType  = 64
+	MaxEventTool  = 128
+	MaxEventStart = 32
+	MaxEventText  = 1000
+)
+
+var eventName = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9._-]*$`)
+
+// EventPushArgs are the arguments of OpEventPush: one event of a session's tool. The values come from the
+// tool and are untrusted data; the sender cuts them to the limits and masks control characters, and
+// Validate refuses what is left over.
+type EventPushArgs struct {
+	// Session is the qcrew session id, not the tool's own.
+	Session string `json:"session"`
+	Source  string `json:"source"`
+	// Event is the tool's name of the event, such as Stop.
+	Event string `json:"event"`
+	// Type is the kind of a notification.
+	Type string `json:"type,omitempty"`
+	// Tool is the name of the tool call the event is about.
+	Tool string `json:"tool,omitempty"`
+	// Start is the reason a session started.
+	Start string `json:"start,omitempty"`
+	Text  string `json:"text,omitempty"`
+	// ContextPercent is how full the context window is, from 0 to 100.
+	ContextPercent *int `json:"context_percent,omitempty"`
+}
+
+// Validate refuses an event whose values are out of form. The error text names the field, never its value.
+func (a EventPushArgs) Validate() error {
+	text := func(name, v string, max int, runes bool) error {
+		n := len(v)
+		if runes {
+			n = utf8.RuneCountInString(v)
+		}
+		switch {
+		case n > max:
+			return fmt.Errorf("the %s is too long", name)
+		case !utf8.ValidString(v) || strings.ContainsFunc(v, unicode.IsControl):
+			return fmt.Errorf("the %s is not plain text", name)
+		}
+		return nil
+	}
+	switch {
+	case !ValidSessionID(a.Session):
+		return errors.New("the session id is not valid")
+	case a.Source != EventSourceHook:
+		return errors.New("the source is not known")
+	case len(a.Event) > MaxEventName || !eventName.MatchString(a.Event):
+		return errors.New("the event name is not valid")
+	case a.ContextPercent != nil && (*a.ContextPercent < 0 || *a.ContextPercent > 100):
+		return errors.New("the context percentage is out of range")
+	}
+	for _, f := range []struct {
+		name, v string
+		max     int
+		runes   bool
+	}{{"type", a.Type, MaxEventType, false}, {"tool", a.Tool, MaxEventTool, false},
+		{"start reason", a.Start, MaxEventStart, false}, {"text", a.Text, MaxEventText, true}} {
+		if err := text(f.name, f.v, f.max, f.runes); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func line(v any) ([]byte, error) {

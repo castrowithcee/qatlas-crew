@@ -27,7 +27,7 @@ ext) tags=ext ;;
 snap)
 	tags=e2e
 	# Only packages with tests define the -update flag; go test fails on the others.
-	pkgs=$(go list -tags e2e -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./internal/tui/... ./internal/cli/...)
+	pkgs=$(go list -tags e2e -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./internal/tui/... ./internal/cli/... ./internal/adapter/claude/...)
 	if [ -z "$pkgs" ]; then
 		echo "snap-update: no golden tests yet"
 		exit 0

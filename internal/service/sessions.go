@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/castrowithcee/qatlas-crew/internal/adapter"
 	"github.com/castrowithcee/qatlas-crew/internal/control"
 	"github.com/castrowithcee/qatlas-crew/internal/session"
 )
@@ -36,6 +37,7 @@ func (s *server) refreshSessions(ctx context.Context) ([]session.Session, error)
 		return nil, err
 	}
 	s.mirror.list, s.mirror.lastErr = list, ""
+	s.status.observe(list)
 	return list, nil
 }
 
@@ -68,6 +70,24 @@ func (s *server) runningSessions(ctx context.Context, projectID string) (int, er
 }
 
 func (s *server) addSessionOps() {
+	s.ops[control.OpEventPush] = func(ctx context.Context, args json.RawMessage) (any, error) {
+		var a control.EventPushArgs
+		if err := decodeArgs(args, &a); err != nil {
+			return nil, err
+		}
+		if err := a.Validate(); err != nil {
+			return nil, &control.Error{Code: control.CodeInvalidArgument, Message: err.Error()}
+		}
+		x, ok := s.findSession(ctx, a.Session)
+		if !ok {
+			return nil, &control.Error{Code: control.CodeNotFound, Message: "no session has the id " + a.Session}
+		}
+		if !adapter.HasHooks(x.Tool) {
+			return nil, &control.Error{Code: control.CodeInvalidArgument, Message: "the tool of the session reports no events"}
+		}
+		s.status.apply(x, a)
+		return struct{}{}, nil
+	}
 	s.ops[control.OpSessionStart] = func(ctx context.Context, args json.RawMessage) (any, error) {
 		var a control.SessionStartArgs
 		if err := decodeArgs(args, &a); err != nil {
@@ -88,8 +108,9 @@ func (s *server) addSessionOps() {
 			return nil, sessionError(err)
 		}
 		s.log.Info("session started", "id", started.ID, "project", p.ID, "tool", started.Tool)
+		s.status.started(started)
 		_, _ = s.refreshSessions(ctx)
-		return wireSession(started), nil
+		return s.wire(started), nil
 	}
 	s.ops[control.OpSessionList] = func(ctx context.Context, args json.RawMessage) (any, error) {
 		var a control.SessionListArgs
@@ -111,7 +132,7 @@ func (s *server) addSessionOps() {
 		out := control.SessionListResult{Sessions: []control.Session{}}
 		for _, x := range list {
 			if projectID == "" || x.Project == projectID {
-				out.Sessions = append(out.Sessions, wireSession(x))
+				out.Sessions = append(out.Sessions, s.wire(x))
 			}
 		}
 		return out, nil
@@ -129,8 +150,10 @@ func (s *server) addSessionOps() {
 			return nil, sessionError(err)
 		}
 		s.log.Info("session stopped", "id", stopped.ID, "project", stopped.Project)
+		out := s.wire(stopped)
+		s.status.forget(stopped.ID)
 		_, _ = s.refreshSessions(ctx)
-		return wireSession(stopped), nil
+		return out, nil
 	}
 	s.ops[control.OpSessionCapture] = func(ctx context.Context, args json.RawMessage) (any, error) {
 		var a control.SessionCaptureArgs
@@ -148,8 +171,31 @@ func (s *server) addSessionOps() {
 	}
 }
 
-func wireSession(x session.Session) control.Session {
-	return control.Session{ID: x.ID, Project: x.Project, Tool: x.Tool, Title: x.Title, Status: x.Status, StartedAt: x.Started}
+// wire returns a session as the channel carries it, with the status the service derived.
+func (s *server) wire(x session.Session) control.Session {
+	status, since, context := s.status.view(x)
+	return control.Session{ID: x.ID, Project: x.Project, Tool: x.Tool, Title: x.Title, Status: status, Since: since,
+		ContextPercent: context, StartedAt: x.Started}
+}
+
+// findSession returns the session with the given id: from the mirror, or, if it is not there yet, from a
+// fresh look at tmux.
+func (s *server) findSession(ctx context.Context, id string) (session.Session, bool) {
+	s.mirror.mu.Lock()
+	list := s.mirror.list
+	s.mirror.mu.Unlock()
+	for range 2 {
+		for _, x := range list {
+			if x.ID == id {
+				return x, true
+			}
+		}
+		var err error
+		if list, err = s.refreshSessions(ctx); err != nil {
+			return session.Session{}, false
+		}
+	}
+	return session.Session{}, false
 }
 
 // sessionError gives a refusal of the session manager its code. Anything else is a runtime error whose text

@@ -1,3 +1,3 @@
-ID            PROJECT       TOOL    TITLE      STATUS   STARTED_AT
-aaaaaaaaaaa2  abcdefghijk2  claude  claude     running  2026-01-02T03:04:05Z
-bbbbbbbbbbb3  mnopqrstuvw7  shell   build log  exited   2026-02-03T04:05:06Z
+ID            PROJECT       TOOL    TITLE      STATUS   SINCE                 CONTEXT_PERCENT  STARTED_AT
+aaaaaaaaaaa2  abcdefghijk2  claude  claude     waiting  2026-01-02T03:09:15Z  42               2026-01-02T03:04:05Z
+bbbbbbbbbbb3  mnopqrstuvw7  shell   build log  exited   2026-02-03T05:06:07Z                   2026-02-03T04:05:06Z

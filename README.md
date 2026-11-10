@@ -65,11 +65,21 @@ An agent session runs `claude`, `codex` or your login shell (`shell`) in a proje
 `qcrew session start --project P --tool T [--title X]`. Sessions run in tmux on a server of their own,
 `tmux -L qcrew`, one tmux session per project and one window per agent session; your own tmux server is
 never touched. They keep running when the service stops or the terminal closes.
-`qcrew session list [--project P]` shows them as `running` or, after the tool ended, `exited`;
+`qcrew session list [--project P]` shows them with a status, since when they have it (`since`) and how full
+the tool's context window is (`context_percent`, empty while unknown);
 `qcrew session stop <id> --confirm` closes the window; `qcrew session attach <id>` prints the tmux command
 that shows a session and runs it at a terminal. A project with running sessions cannot be removed.
 qcrew needs `tmux` and the tool in `PATH`. `QCREW_TMUX_SOCKET` (an absolute socket path) moves qcrew to
 another tmux server, for example in tests. `qcrew help session-guide` has the details.
+
+The status is one of `running` (the tool works), `waiting` (it asks for a permission or an answer), `idle`
+(it finished its turn and waits for input), `error` (its program ended without saying so, or a hook sent
+something unreadable) or `exited`. Only Claude Code reports all five; `codex` and `shell` show `running`
+while the tool runs and `exited` after it ended.
+
+**Claude Code.** qcrew starts `claude` with a settings file of its own for each session, whose hooks report the
+status to the service. Your user settings and the settings of the project are never changed, and the
+status line that reports the context fill is added only if you have none of your own.
 
 ## Build from source
 

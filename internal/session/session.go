@@ -3,6 +3,7 @@ package session
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -17,6 +18,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/castrowithcee/qatlas-crew/internal/adapter"
+	"github.com/castrowithcee/qatlas-crew/internal/adapter/claude"
 	"github.com/castrowithcee/qatlas-crew/internal/project"
 )
 
@@ -28,7 +30,7 @@ const ServerName = "qcrew"
 // ServerName, for tests and for running a second, separate set of sessions.
 const SocketEnv = "QCREW_TMUX_SOCKET"
 
-// The states of a session.
+// The states tmux knows of a session: its program runs or has ended. The service refines them.
 const (
 	StatusRunning = "running"
 	StatusExited  = "exited"
@@ -120,6 +122,9 @@ const (
 	optTool    = "@qcrew-tool"
 	optTitle   = "@qcrew-title"
 	optStarted = "@qcrew-started"
+	// optAgentSession holds the id a tool knows the session by, for tools that take one. A later resume needs
+	// it, so it lives in tmux with the rest.
+	optAgentSession = "@qcrew-agent-session"
 )
 
 // listFormat puts the title last because it is the only free text.
@@ -138,12 +143,57 @@ type Manager struct {
 	lookPath func(string) (string, error)
 	getenv   func(string) string
 	newID    func() (string, error)
+	newUUID  func() (string, error)
 	now      func() time.Time
+	// dataDir is the data directory of qcrew, where adapters keep their files for a session; executable
+	// returns the path of the qcrew program that hooks call.
+	dataDir    string
+	executable func() (string, error)
+}
+
+// Option configures a Manager.
+type Option func(*Manager)
+
+// WithDataDir sets the data directory of qcrew, below which adapters keep their files.
+func WithDataDir(dir string) Option { return func(m *Manager) { m.dataDir = dir } }
+
+// WithExecutable sets how the manager finds the qcrew program that the hooks of a tool call; the default is
+// the running program.
+func WithExecutable(f func() (string, error)) Option {
+	return func(m *Manager) {
+		if f != nil {
+			m.executable = f
+		}
+	}
 }
 
 // New returns the manager of the sessions on server.
-func New(server Server) *Manager {
-	return &Manager{server: server, lookPath: exec.LookPath, getenv: os.Getenv, newID: project.NewID, now: time.Now}
+func New(server Server, opts ...Option) *Manager {
+	m := &Manager{server: server, lookPath: exec.LookPath, getenv: os.Getenv, newID: project.NewID, newUUID: newUUID,
+		now: time.Now, executable: os.Executable}
+	for _, o := range opts {
+		o(m)
+	}
+	return m
+}
+
+// newUUID returns a random version 4 UUID.
+func newUUID() (string, error) {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", fmt.Errorf("create a tool session id: %w", err)
+	}
+	b[6] = b[6]&0x0f | 0x40
+	b[8] = b[8]&0x3f | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
+}
+
+// adapterFor returns the adapter of a tool.
+func (m *Manager) adapterFor(tool string) (adapter.Adapter, error) {
+	if tool == adapter.Claude {
+		return claude.Adapter{Getenv: m.getenv}, nil
+	}
+	return adapter.Plain(tool, m.getenv)
 }
 
 // Server is the tmux server of the manager.
@@ -259,10 +309,12 @@ func ValidTitle(title string) error {
 // Start opens a window for a new session in the tmux session of its project, creating that session and the
 // server as needed, and starts the tool there.
 func (m *Manager) Start(ctx context.Context, req StartRequest) (Session, error) {
-	command, err := adapter.Command(req.Tool, m.getenv)
+	ad, err := m.adapterFor(req.Tool)
 	if err != nil {
 		return Session{}, refuse(ErrInvalid, "the tool %q is not one of %s", req.Tool, strings.Join(adapter.Tools, ", "))
 	}
+	// The program to look for does not depend on the session, so the check can come before the session exists.
+	command := ad.Command(adapter.Session{})
 	title := req.Title
 	if title == "" {
 		title = req.Tool
@@ -291,6 +343,13 @@ func (m *Manager) Start(ctx context.Context, req StartRequest) (Session, error) 
 	}
 	s := Session{ID: id, Project: req.ProjectID, Tool: req.Tool, Title: title, Status: StatusRunning,
 		Started: m.now().UTC().Truncate(time.Second)}
+	as := adapter.Session{ID: id, Dir: req.Dir, DataDir: m.dataDir}
+	as.Program, _ = m.executable() // only a tool that calls back needs it, and its adapter refuses without
+	if adapter.HasHooks(req.Tool) {
+		if as.AgentSession, err = m.newUUID(); err != nil {
+			return Session{}, err
+		}
+	}
 
 	created := []string{"-n", WindowName(id), "-c", req.Dir, "-P", "-F", "#{window_id}\t#{pane_id}", "--"}
 	created = append(created, placeholder...)
@@ -316,12 +375,16 @@ func (m *Manager) Start(ctx context.Context, req StartRequest) (Session, error) 
 
 	set := func(name, value string) []string { return []string{"set-option", "-w", "-t", window, name, value, ";"} }
 	var setup []string
-	for _, opt := range [][2]string{
+	options := [][2]string{
 		{optSession, s.ID}, {optProject, s.Project}, {optTool, s.Tool}, {optTitle, s.Title},
 		{optStarted, s.Started.Format(time.RFC3339)},
 		{"remain-on-exit", "on"}, {"allow-rename", "off"}, {"automatic-rename", "off"},
 		{"pane-border-status", "top"}, {"pane-border-format", " #{" + optTitle + "} "},
-	} {
+	}
+	if as.AgentSession != "" {
+		options = append(options, [2]string{optAgentSession, as.AgentSession})
+	}
+	for _, opt := range options {
 		setup = append(setup, set(opt[0], opt[1])...)
 	}
 	setup = append(setup, "select-pane", "-t", pane, "-T", s.Title)
@@ -329,8 +392,14 @@ func (m *Manager) Start(ctx context.Context, req StartRequest) (Session, error) 
 		_, _ = m.tmux(ctx, "kill-window", "-t", window)
 		return Session{}, fmt.Errorf("set the window options: %w", err)
 	}
+	if err := ad.Prepare(as); err != nil {
+		_, _ = m.tmux(ctx, "kill-window", "-t", window)
+		return Session{}, fmt.Errorf("prepare the tool: %w", err)
+	}
+	command = ad.Command(as)
 	if _, err := m.tmux(ctx, append([]string{"respawn-pane", "-k", "-t", pane, "-c", req.Dir, "--"}, command...)...); err != nil {
 		_, _ = m.tmux(ctx, "kill-window", "-t", window)
+		ad.Cleanup(as)
 		return Session{}, fmt.Errorf("start the tool: %w", err)
 	}
 	return s, nil
@@ -365,6 +434,9 @@ func (m *Manager) Stop(ctx context.Context, id string) (Session, error) {
 	}
 	if _, err := m.tmux(ctx, "kill-window", "-t", s.window); err != nil {
 		return Session{}, fmt.Errorf("close the window: %w", err)
+	}
+	if ad, err := m.adapterFor(s.Tool); err == nil {
+		ad.Cleanup(adapter.Session{ID: s.ID, DataDir: m.dataDir})
 	}
 	return s, nil
 }

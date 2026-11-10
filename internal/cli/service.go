@@ -37,6 +37,10 @@ var serviceCommand = func() background.Command {
 	return background.Command{Args: []string{"service", "run"}}
 }
 
+// serviceProgram replaces how the service finds the qcrew program its hooks call; nil means the running
+// program. Tests replace it, because the test binary cannot run the hook command.
+var serviceProgram func() (string, error)
+
 // serviceAccess is how commands reach the service. Tests replace its functions.
 type serviceAccess struct {
 	// noAutostart makes connect fail instead of starting a service that is not running.
@@ -263,7 +267,7 @@ func runServiceProcess(c *cobra.Command, access *serviceAccess) error {
 		child.Fail(err.Error())
 		return err
 	}
-	err = service.Run(c.Context(), service.Options{Version: version, Config: config, Ready: child.Ready})
+	err = service.Run(c.Context(), service.Options{Version: version, Config: config, Ready: child.Ready, Program: serviceProgram})
 	switch {
 	case errors.Is(err, service.ErrRunning):
 		child.Running()

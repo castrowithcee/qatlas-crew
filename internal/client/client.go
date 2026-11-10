@@ -174,6 +174,12 @@ func (c *Client) Sessions(ctx context.Context, project string) ([]control.Sessio
 	return res.Sessions, nil
 }
 
+// PushEvent reports an event of a session's tool to the service.
+func (c *Client) PushEvent(ctx context.Context, args control.EventPushArgs) error {
+	_, err := c.Call(ctx, control.OpEventPush, args)
+	return err
+}
+
 // StopSession ends a session and closes its window.
 func (c *Client) StopSession(ctx context.Context, id string) (control.Session, error) {
 	var x control.Session

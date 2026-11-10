@@ -55,11 +55,11 @@ const sessionTopic = `An agent session runs a tool in the directory of a project
 
 Commands:
 - qcrew session start --project P --tool T [--title X]: start a session in the project with the id or name P; the title defaults to the tool
-- qcrew session list [--project P]: show id, project, tool, title, status and started_at of the sessions (--output table, json or compact)
+- qcrew session list [--project P]: show id, project, tool, title, status, since, context_percent and started_at of the sessions (--output table, json or compact)
 - qcrew session stop <id> --confirm: end the session and close its window
 - qcrew session attach <id>: print the tmux command that shows the session, and run it at a terminal; detach with the tmux prefix key and d, and the session keeps running
 
-The status is running while the tool runs and exited after it ended; an exited session keeps its window, with the last output, until it is stopped.
+The status is running, waiting, idle, error or exited, and since is when the session took it. For claude, the hooks of Claude Code report it: running while it works, waiting for a permission or an answer, idle after it finished a turn, exited after the session ended, and error if its program ended without saying so or a hook sent something unreadable. qcrew starts claude with a settings file of its own for each session, below ~/.qatlas/qcrew/sessions, and changes neither your settings nor those of the project. context_percent is how full the context window is; qcrew learns it from a status line it adds, and leaves it empty if you have a status line of your own. For codex and shell, the status is running while the tool runs and exited after it ended. An exited session keeps its window, with the last output, until it is stopped.
 
 Each project has one tmux session named p-<project id>, and each agent session is a window in it named s-<session id>. You may attach with tmux -L qcrew attach yourself and use tmux as usual.
 
