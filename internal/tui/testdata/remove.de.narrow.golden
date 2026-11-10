@@ -1,0 +1,30 @@
+qcrew                                              [?] Hilfe
+  [1 Projekte]  2 Postfach   3 Sessions   4 Einstellungen   
+------------------------------------------------------------
+> Projekte                      [ + Projekt ] [ entfernen ] 
+  PROJEKT  POSTFACH                                         
+> alpha           3                                         
+  beta            0                                         
+                                                            
+                                                            
+                                                            
+                                                            
+  #= Projekt entfernen ==================================#  
+  | ! Das Projekt 'alpha' aus qcrew entfernen?           |  
+  |                                                      |] 
+  | qcrew vergisst das Projekt. Sein Ordner und die      |  
+> | Dateien darin bleiben unverändert.                   |  
+  |                                                      |  
+  | [ entfernen ]  > abbrechen <                         |  
+  | y entfernen  n/esc/enter abbrechen                   |  
+  #======================================================#  
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                         1/2

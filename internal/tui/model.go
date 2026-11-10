@@ -82,6 +82,9 @@ type config struct {
 	now      func() time.Time // clock of the SINCE column; nil takes time.Now
 	warnings []string
 	mouse    bool
+	// home resolves "~" in the folder picker and folders reads its folders; empty home starts it at "/".
+	home    string
+	folders folderSource
 	// prefs are the whole preferences as loaded; savePrefs writes them, nil when they cannot be saved.
 	prefs     uiprefs.Prefs
 	savePrefs func(uiprefs.Prefs) error
@@ -138,6 +141,14 @@ type Model struct {
 	set      *settingsState
 	modal    *modal
 	stopping bool
+	// add is the open dialog that adds a project; home resolves "~" in it and folders reads its folders.
+	add     *addDialog
+	home    string
+	folders folderSource
+	// removing and starting say that a removal or a start is under way; toolMissing holds the tools the service
+	// found missing, until the person reads the service again.
+	removing, starting bool
+	toolMissing        map[string]bool
 	// after starts a timer; tests replace it.
 	after    func(time.Duration, func(time.Time) tea.Msg) tea.Cmd
 	help     *kittui.Help
@@ -168,7 +179,11 @@ func newModel(c config) (*Model, error) {
 		frame: kittui.NewFrame(keys, text), prefs: c.prefs, savePrefs: c.savePrefs, icons: c.prefs.Icons,
 		themes: themes, theme: c.theme, profile: c.profile, charset: c.charset, area: areaProjects,
 		statusTones: map[string]kittui.TextStyle{}, projByID: map[kittui.ItemID]control.Project{},
-		sessByID: map[kittui.ItemID]control.Session{}, after: tea.Tick, mouseOn: c.mouse}
+		sessByID: map[kittui.ItemID]control.Session{}, after: tea.Tick, mouseOn: c.mouse,
+		home: c.home, folders: c.folders, toolMissing: map[string]bool{}}
+	if m.folders.ReadDir == nil {
+		m.folders = osFolders()
+	}
 	if m.ctx == nil {
 		m.ctx = context.Background()
 	}
@@ -272,6 +287,12 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		m.apply(msg)
 	case stopMsg:
 		return m.applyStop(msg)
+	case addMsg:
+		return m.applyAdd(msg)
+	case removeMsg:
+		return m.applyRemove(msg)
+	case startMsg:
+		return m.applyStart(msg)
 	case tea.ForegroundColorMsg:
 		m.terminal.Foreground, m.haveFG = kittui.ColorOf(msg.Color), true
 		m.restyle()
@@ -448,6 +469,9 @@ func (m *Model) input() kittui.InputFocus {
 	if m.helpOpen || m.modal != nil {
 		return kittui.InputNavigation
 	}
+	if m.add != nil {
+		return m.add.input()
+	}
 	switch m.area {
 	case areaSettings:
 		return m.set.form.Input()
@@ -475,6 +499,9 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 	m.notice, m.result = "", ""
 	if m.modal != nil {
 		return m.modalKey(msg)
+	}
+	if m.add != nil {
+		return m.addKey(msg)
 	}
 	if m.helpOpen {
 		if act, handled := m.help.Update(msg); handled {
@@ -514,7 +541,15 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 			m.openHelp()
 			return nil
 		case actReload:
+			clear(m.toolMissing)
 			return m.reload()
+		case actAdd:
+			return m.beginAdd()
+		case actRemove:
+			return m.beginRemove()
+		case actClaude, actCodex, actShell:
+			tool, _ := toolOf(id)
+			return m.startTool(tool)
 		case actFull:
 			m.toggleFull()
 			return nil
@@ -656,8 +691,18 @@ func (m *Model) syncFocus() {
 
 // marks are the status marks of the header.
 func (m *Model) marks() []kittui.StatusMark {
-	if m.stopping {
-		return []kittui.StatusMark{{Kind: kittui.StatusBusy, Text: m.text.Lookup(textKeyStop)}}
+	busy := func(id kittui.TextID) []kittui.StatusMark {
+		return []kittui.StatusMark{{Kind: kittui.StatusBusy, Text: m.text.Lookup(id)}}
+	}
+	switch {
+	case m.stopping:
+		return busy(textKeyStop)
+	case m.add != nil && m.add.running:
+		return busy(textKeyAdd)
+	case m.removing:
+		return busy(textKeyRemove)
+	case m.starting:
+		return busy(textKeyStart)
 	}
 	return nil
 }
@@ -689,6 +734,9 @@ func (m *Model) footer() []kittui.Hint {
 		// The keys of the screen behind a question do nothing; the question shows its own.
 		return nil
 	}
+	if m.add != nil {
+		return m.addHints()
+	}
 	nav := []kittui.Hint{
 		{Action: actUp, Label: kittui.TextKeyChoose, Kind: kittui.HintNavigation},
 		{Action: actDown, Label: kittui.TextKeyChoose, Kind: kittui.HintNavigation},
@@ -714,8 +762,10 @@ func (m *Model) footer() []kittui.Hint {
 	common = append([]kittui.Hint{full}, common...)
 	switch m.area {
 	case areaProjects:
+		common = append(m.projectFooter(m.area), common...)
 		return m.listFooter(m.projList, len(m.projects), textKeySessions, common, nav)
 	case areaSessions:
+		common = append(m.projectFooter(m.area), common...)
 		if len(m.sessByID) > 0 {
 			common = append([]kittui.Hint{{Action: actStop, Label: textKeyStop, Priority: 1}}, common...)
 		}
@@ -755,6 +805,9 @@ func (m *Model) frameSpec() kittui.FrameSpec {
 	}
 	if l := m.focusedList(); l != nil {
 		spec.Position = l.Position()
+	}
+	if m.add != nil {
+		spec.Position = m.addPosition()
 	}
 	if m.area != areaProjects || m.full {
 		spec.Back = &kittui.Hint{Action: actBack, Label: kittui.TextKeyBack}

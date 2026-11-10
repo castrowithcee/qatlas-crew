@@ -1,0 +1,30 @@
+qcrew                                                       
+  [1 Projekte]  2 Postfach   3 Sessions   4 Einstellungen   
+------------------------------------------------------------
+Projekt anlegen                                             
+Wähle einen vorhandenen Ordner oder den Ort für einen neuen.
+         #=================================================#
+> Ordner | ~/work/_                                        |
+         #=================================================#
+  Ordner in ~/work/                                         
+    ORDNER                                                  
+  > ..                                                      
+    app/                                                    
+    lib/                                                    
+                                                            
+               +-------------------------------------------+
+  verwenden    | neuen Ordner darin                      v |
+               +-------------------------------------------+
+               #===========================================#
+> neuer Ordner | fresh_                                    |
+               #===========================================#
+               der Name des Ordners, den qcrew anlegt       
+               +-------------------------------------------+
+  Name         | fresh                                     |
+               +-------------------------------------------+
+                                                            
+                                                            
+                                                            
+[ F2 anlegen ]  [ esc abbrechen ]                           
+F2 anlegen  esc abbrechen                                   
+                   tab Nächstes Feld  shift+tab Voriges Feld

@@ -1,0 +1,30 @@
+qcrew                                               [?] help
+  [1 Projects]  2 Inbox   3 Sessions   4 Settings           
+------------------------------------------------------------
+> Projects                         [ + project ] [ remove ] 
+  PROJECT  INBOX                                            
+> alpha        3                                            
+  beta         0                                            
+                                                            
+                                                            
+                                                            
+                                                            
+  #= Remove project =====================================#  
+  | ! Remove the project 'alpha' from qcrew?             |  
+  |                                                      |] 
+  | qcrew forgets the project. Its folder and the files  |  
+> | in it stay as they are.                              |  
+  |                                                      |  
+  | [ remove ]  > cancel <                               |  
+  | y remove  n/esc/enter cancel                         |  
+  #======================================================#  
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                         1/2

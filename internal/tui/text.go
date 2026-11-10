@@ -85,7 +85,7 @@ const (
 )
 
 func catalog() i18n.Catalogs[kittui.TextID] {
-	return i18n.Catalogs[kittui.TextID]{
+	return withProjectTexts(i18n.Catalogs[kittui.TextID]{
 		i18n.English: {
 			textAreaProjects: "Projects",
 			textAreaInbox:    "Inbox",
@@ -119,9 +119,9 @@ func catalog() i18n.Catalogs[kittui.TextID] {
 			textStatusError:   "error",
 			textStatusExited:  "exited",
 
-			textProjectsEmpty:   "No project yet. Add one with 'qcrew project add <path>'.",
+			textProjectsEmpty:   "No project yet. Add one with {add}.",
 			textProjectsLoading: "Reading the projects ...",
-			textSessionsEmpty:   "No session in this project. Start one with 'qcrew session start'.",
+			textSessionsEmpty:   "No session in this project. Start one with {claude}, {codex} or {shell}.",
 			textSessionsNoProj:  "Choose a project first.",
 			textInboxSoon:       "The inbox of this project follows in a later release. Open entries: %d.",
 			textMissingProgram:  "%s Next step: run 'qcrew setup' to install what qcrew needs.",
@@ -195,9 +195,9 @@ func catalog() i18n.Catalogs[kittui.TextID] {
 			textStatusError:   "Fehler",
 			textStatusExited:  "beendet",
 
-			textProjectsEmpty:   "Noch kein Projekt. Lege eines mit 'qcrew project add <Pfad>' an.",
+			textProjectsEmpty:   "Noch kein Projekt. Lege eines mit {add} an.",
 			textProjectsLoading: "Lese die Projekte ...",
-			textSessionsEmpty:   "Keine Session in diesem Projekt. Starte eine mit 'qcrew session start'.",
+			textSessionsEmpty:   "Keine Session in diesem Projekt. Starte eine mit {claude}, {codex} oder {shell}.",
 			textSessionsNoProj:  "Wähle zuerst ein Projekt.",
 			textInboxSoon:       "Das Postfach dieses Projekts folgt in einer späteren Version. Offene Einträge: %d.",
 			textMissingProgram:  "%s Nächster Schritt: 'qcrew setup' ausführen, um zu installieren, was qcrew braucht.",
@@ -238,5 +238,5 @@ func catalog() i18n.Catalogs[kittui.TextID] {
 			textFormRetry:   "Prüfe den Ordner und speichere erneut.",
 			textFormNoPlace: "Setze HOME, damit qcrew die Einstellungen ablegen kann.",
 		},
-	}
+	})
 }

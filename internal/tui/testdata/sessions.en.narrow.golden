@@ -1,7 +1,7 @@
 qcrew                                   [esc] back  [?] help
    1 Projects   2 Inbox  [3 Sessions]  4 Settings           
 ------------------------------------------------------------
-  Projects                                                  
+  Projects                         [ + project ] [ remove ] 
   PROJECT  INBOX                                            
 > alpha        3                                            
   beta         0                                            
@@ -11,7 +11,7 @@ qcrew                                   [esc] back  [?] help
                                                             
                                                             
                                                             
-> Sessions of alpha                                         
+> Sessions of alpha          [ claude ] [ codex ] [ shell ] 
   TOOL    TITLE            STATUS   SINCE                   
   claude  refactor parser  running     1m                   
 > codex   write docs       waiting     3h                   
@@ -26,5 +26,5 @@ qcrew                                   [esc] back  [?] help
                                                             
                                                             
                                                             
-/ search  x stop session  f full screen  r reload  1-4 area 
-q quit                                   up/down choose  2/3
+/ search  t stop session  c/x/s start  f full screen        
+r reload  1-4 area  q quit               up/down choose  2/3

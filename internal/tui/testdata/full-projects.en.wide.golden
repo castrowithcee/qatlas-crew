@@ -1,7 +1,7 @@
 qcrew                                                                                               [esc] back  [?] help
   [1 Projects]  2 Inbox   3 Sessions   4 Settings                                                                       
 ------------------------------------------------------------------------------------------------------------------------
-> Projects                                                                                                              
+> Projects                                                                                     [ + project ] [ remove ] 
   PROJECT  INBOX                                                                                                        
 > alpha        3                                                                                                        
   beta         0                                                                                                        
@@ -37,4 +37,4 @@ qcrew                                                                           
                                                                                                                         
                                                                                                                         
                                                                                                                         
-enter sessions  / search  f columns  r reload  1-4 area  q quit                                      up/down choose  1/2
+enter sessions  / search  n add project  f columns  r reload  1-4 area  q quit                       up/down choose  1/2

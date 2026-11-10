@@ -18,6 +18,10 @@ func (m *Model) setMouse(targets []kittui.Target) {
 		// The dialog decides, not the screen behind it.
 		on = m.modal.dialog.Input() == kittui.InputNavigation
 	}
+	if m.add != nil && m.modal == nil {
+		// The folders are chosen by click while the path is typed; a mouse report never becomes text.
+		on = true
+	}
 	m.mouseMap = kittui.NewMouseMap(targets, m.mouseOn && on)
 }
 
@@ -74,6 +78,9 @@ func (m *Model) mouse(msg tea.MouseMsg) tea.Cmd {
 	}
 	if m.helpOpen {
 		return m.helpMouse(res)
+	}
+	if m.add != nil {
+		return m.addMouse(msg, res)
 	}
 	at := msg.Mouse()
 	switch {
