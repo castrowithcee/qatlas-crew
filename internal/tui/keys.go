@@ -31,6 +31,8 @@ const (
 	// The answers of a question.
 	actYes kittui.ActionID = "yes"
 	actNo  kittui.ActionID = "no"
+	// actViewExit leaves the focused session view; it is the one key the view never passes on.
+	actViewExit kittui.ActionID = "viewexit"
 )
 
 // areaKeys are the keys of actArea, one per area in the order of the tab line.
@@ -59,6 +61,9 @@ func keyTable() []kittui.Action {
 		act(actArea, kittui.LevelMove, textKeyArea, areaKeys...),
 		act(actFull, kittui.LevelLetter, textKeyFull, "f"),
 		act(actStop, kittui.LevelLetter, textKeyStop, "x"),
+		// The kit takes no replacement for ctrl+], so tui.yaml can only add a key beside it.
+		{ID: actViewExit, Level: kittui.LevelGlobal, DefaultKeys: []string{"ctrl+]"}, Help: textKeyViewExit,
+			Rebind: kittui.RebindExtra},
 		act(actToggle, kittui.LevelMove, kittui.TextKeyToggle, "space"),
 		act(actNext, kittui.LevelMove, kittui.TextKeyNext, "tab"),
 		act(actPrev, kittui.LevelMove, kittui.TextKeyPrevious, "shift+tab"),

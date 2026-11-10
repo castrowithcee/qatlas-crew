@@ -1,0 +1,30 @@
+qcrew                                [esc] Zurück  [?] Hilfe
+   1 Projekte   2 Postfach  [3 Sessions]  4 Einstellungen   
+------------------------------------------------------------
+  Projekte                                                  
+  PROJEKT  POSTFACH                                         
+> alpha           3                                         
+  beta            0                                         
+> Sessions von alpha                                        
+  TOOL    TITEL            STATUS  SEIT                     
+> claude  refactor parser  läuft     1m                     
+  codex   write docs       wartet    3h                     
+  claude  fix flaky test   Fehler    1d                     
+  Session-Ansicht: refactor parser                          
+first line                                                  
+äöü utf-8 line                                              
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+  Tool: claude  Status: läuft                               
+/ Suchen  x Session stoppen  f Vollbild  r Neu laden        
+1-4 Bereich  q Beenden                up/down Auswählen  1/3

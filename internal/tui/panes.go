@@ -83,6 +83,9 @@ func (m *Model) workspace(width, height int) string {
 		return fit(m.note(text, width), width, height)
 	}
 	active := map[kittui.AreaID]pane{areaProjects: paneProjects, areaSessions: paneSessions, areaInbox: paneInbox}[m.area]
+	if view, listH, ok := m.sessionSplit(width, height); ok {
+		return m.splitWorkspace(width, height, view, listH)
+	}
 	switch {
 	case m.full:
 		return m.drawPane(active, width, height, 0, 0)
@@ -116,7 +119,7 @@ func (m *Model) workspace(width, height int) string {
 // and y of the workspace, and registers what takes clicks.
 func (m *Model) drawPane(p pane, width, height, x, y int) string {
 	area := paneArea[p]
-	focused := m.area == area && m.focus() == kittui.ZoneRows
+	focused := m.area == area && m.focus() == kittui.ZoneRows && !(p == paneSessions && m.viewSel)
 	title, tone := m.paneTitle(p), kittui.StyleHint
 	if focused {
 		title, tone = m.styles.SelectionMark()+" "+title, kittui.StyleActive

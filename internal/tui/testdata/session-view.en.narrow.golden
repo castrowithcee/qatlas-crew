@@ -1,0 +1,30 @@
+qcrew                                   [esc] back  [?] help
+   1 Projects   2 Inbox  [3 Sessions]  4 Settings           
+------------------------------------------------------------
+  Projects                                                  
+  PROJECT  INBOX                                            
+> alpha        3                                            
+  beta         0                                            
+> Sessions of alpha                                         
+  TOOL    TITLE            STATUS   SINCE                   
+> claude  refactor parser  running     1m                   
+  codex   write docs       waiting     3h                   
+  claude  fix flaky test   error       1d                   
+  Session view: refactor parser                             
+first line                                                  
+äöü utf-8 line                                              
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+  Tool: claude  Status: running                             
+/ search  x stop session  f full screen  r reload  1-4 area 
+q quit                                   up/down choose  1/3

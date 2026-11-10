@@ -91,6 +91,32 @@ func TestPreferencesLiveInTheDataFolder(t *testing.T) {
 	}
 }
 
+// The session view attaches with the server the environment names and forces UTF-8 for the embedded client.
+func TestInterfaceGetsTheEmbeddedAttachCommand(t *testing.T) {
+	env := testenv.Setup(t)
+	runs := atTerminal(t, true)
+	if code, _, _ := run(t); code != 0 {
+		t.Fatalf("code %d", code)
+	}
+	opts := (*runs)[0]
+	if opts.Attach == nil {
+		t.Fatal("no attach command is given")
+	}
+	got := strings.Join(opts.Attach("proj", "sess"), " ")
+	want := "tmux -S " + filepath.Join(env.Root, "no-tmux", "socket") + " -u attach -t p-proj:s-sess"
+	if got != want {
+		t.Errorf("attach = %q, want %q", got, want)
+	}
+	t.Setenv("QCREW_TMUX_SOCKET", "relative/sock")
+	*runs = nil
+	if code, _, _ := run(t); code != 0 {
+		t.Fatalf("code %d", code)
+	}
+	if o := (*runs)[0]; o.Attach != nil || len(o.PrefsWarnings) == 0 {
+		t.Errorf("a bad socket path leaves the session view on: %+v", o)
+	}
+}
+
 func TestPreferencesFollowQcrewDir(t *testing.T) {
 	testenv.Setup(t)
 	dir := t.TempDir()

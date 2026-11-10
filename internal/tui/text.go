@@ -82,6 +82,20 @@ const (
 	textSaveFailed  kittui.TextID = "settings.savefailed"
 	textFormRetry   kittui.TextID = "settings.retry"
 	textFormNoPlace kittui.TextID = "settings.noplace"
+
+	textViewTitle   kittui.TextID = "view.title"
+	textViewTitleOf kittui.TextID = "view.titleof"
+	textViewNone    kittui.TextID = "view.none"
+	textViewEnded   kittui.TextID = "view.ended"
+	textViewFailed  kittui.TextID = "view.failed"
+	textViewStatus  kittui.TextID = "view.status"
+	textViewContext kittui.TextID = "view.context"
+
+	// The keys of the focused session view: the help text of the exit action, the footer line that names its
+	// keys through the placeholder, and the label of enter.
+	textKeyViewExit  kittui.TextID = "key.viewexit"
+	textKeyViewFocus kittui.TextID = "key.viewfocus"
+	textKeyControl   kittui.TextID = "key.control"
 )
 
 func catalog() i18n.Catalogs[kittui.TextID] {
@@ -161,6 +175,18 @@ func catalog() i18n.Catalogs[kittui.TextID] {
 			textSaveFailed:  "The preferences could not be written: %s",
 			textFormRetry:   "Check the folder and save again.",
 			textFormNoPlace: "Set HOME so that qcrew can keep the preferences.",
+
+			textViewTitle:   "Session view",
+			textViewTitleOf: "Session view: %s",
+			textViewNone:    "Choose a session to see it here.",
+			textViewEnded:   "The session has ended.",
+			textViewFailed:  "The session cannot be shown: %s",
+			textViewStatus:  "Tool: %s  Status: %s",
+			textViewContext: "Context: %d%%",
+
+			textKeyViewExit:  "Leave the session view and return to qcrew",
+			textKeyViewFocus: "{viewexit} back to qcrew",
+			textKeyControl:   "control the session",
 		},
 		i18n.German: {
 			textAreaProjects: "Projekte",
@@ -237,6 +263,18 @@ func catalog() i18n.Catalogs[kittui.TextID] {
 			textSaveFailed:  "Die Einstellungen ließen sich nicht schreiben: %s",
 			textFormRetry:   "Prüfe den Ordner und speichere erneut.",
 			textFormNoPlace: "Setze HOME, damit qcrew die Einstellungen ablegen kann.",
+
+			textViewTitle:   "Session-Ansicht",
+			textViewTitleOf: "Session-Ansicht: %s",
+			textViewNone:    "Wähle eine Session, um sie hier zu sehen.",
+			textViewEnded:   "Die Session ist beendet.",
+			textViewFailed:  "Die Session lässt sich nicht anzeigen: %s",
+			textViewStatus:  "Tool: %s  Status: %s",
+			textViewContext: "Kontext: %d%%",
+
+			textKeyViewExit:  "Die Session-Ansicht verlassen und zu qcrew zurückkehren",
+			textKeyViewFocus: "{viewexit} zurück zu qcrew",
+			textKeyControl:   "Session steuern",
 		},
 	}
 }

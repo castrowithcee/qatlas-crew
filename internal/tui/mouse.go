@@ -27,6 +27,7 @@ type mousePart struct {
 	rect    kittui.Rect
 	list    *kittui.List
 	form    *kittui.Form
+	view    bool // the session view
 	targets []kittui.Target
 }
 
@@ -55,7 +56,7 @@ func (m *Model) partTargets(room kittui.Rect) (targets []kittui.Target, parts []
 func (m *Model) partAt(x, y int) (mousePart, bool) {
 	for _, p := range slices.Backward(m.mouseParts) {
 		r := p.rect
-		if (p.list != nil || p.form != nil) && x >= r.X && x < r.X+r.Width && y >= r.Y && y < r.Y+r.Height {
+		if (p.list != nil || p.form != nil || p.view) && x >= r.X && x < r.X+r.Width && y >= r.Y && y < r.Y+r.Height {
 			return p, true
 		}
 	}
@@ -106,6 +107,11 @@ func (m *Model) mouse(msg tea.MouseMsg) tea.Cmd {
 			return m.press(key)
 		}
 	case res.Zone != "":
+		if p, ok := m.partAt(at.X, at.Y); ok && p.view {
+			// A click in the view gives it the focus where a client runs.
+			m.focusView()
+			return nil
+		}
 		if slices.Contains(m.zones(), res.Zone) {
 			m.setZone(res.Zone)
 		}
@@ -124,6 +130,7 @@ func (m *Model) rowClick(list *kittui.List, res kittui.MouseResult) tea.Cmd {
 	case list == m.sessList:
 		m.area = areaSessions
 	}
+	m.viewSel = false
 	m.setZone(kittui.ZoneRows)
 	if open != "" && list == m.projList {
 		return m.openProject()

@@ -17,6 +17,7 @@ import (
 
 	"github.com/castrowithcee/qatlas-crew/internal/control"
 	"github.com/castrowithcee/qatlas-crew/internal/helptopics"
+	"github.com/castrowithcee/qatlas-crew/internal/tui/term"
 )
 
 // The areas of the tab line, in its order. Projects, Inbox and Sessions share the work screen: the project
@@ -85,6 +86,8 @@ type config struct {
 	// prefs are the whole preferences as loaded; savePrefs writes them, nil when they cannot be saved.
 	prefs     uiprefs.Prefs
 	savePrefs func(uiprefs.Prefs) error
+	// attach gives the command that attaches a terminal to a session; nil shows no session view.
+	attach func(project, id string) []string
 }
 
 // tickMsg starts a periodic refresh.
@@ -149,6 +152,15 @@ type Model struct {
 	// parts are the widgets the last workspace drawing registered, in workspace cells; mouseParts are those of
 	// the frame on the screen, in screen cells.
 	parts, mouseParts []mousePart
+	// attach is the command that attaches a terminal to a session, nil for no session view. view is the
+	// terminal of the session view, nil while none is attached; viewSel tells that the view, not the session
+	// list, is the selected pane of the sessions area.
+	attach  func(project, id string) []string
+	view    *sessionTerm
+	viewSel bool
+	// viewFocus gives the running view every key, paste and click; it needs viewSel. viewDown tells that the
+	// session got a mouse press whose release is still to come.
+	viewFocus, viewDown bool
 }
 
 func newModel(c config) (*Model, error) {
@@ -156,6 +168,9 @@ func newModel(c config) (*Model, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Prefs.Keys holds only bindings the key table accepted when it was loaded; a set that breaks a rule now
+	// changes nothing and is reported below.
+	bindErr := keys.Bind(c.prefs.Keys)
 	text, err := kittui.NewTranslator(c.lang, catalog(), keys)
 	if err != nil {
 		return nil, err
@@ -168,7 +183,7 @@ func newModel(c config) (*Model, error) {
 		frame: kittui.NewFrame(keys, text), prefs: c.prefs, savePrefs: c.savePrefs, icons: c.prefs.Icons,
 		themes: themes, theme: c.theme, profile: c.profile, charset: c.charset, area: areaProjects,
 		statusTones: map[string]kittui.TextStyle{}, projByID: map[kittui.ItemID]control.Project{},
-		sessByID: map[kittui.ItemID]control.Session{}, after: tea.Tick, mouseOn: c.mouse}
+		sessByID: map[kittui.ItemID]control.Session{}, after: tea.Tick, mouseOn: c.mouse, attach: c.attach}
 	if m.ctx == nil {
 		m.ctx = context.Background()
 	}
@@ -186,6 +201,9 @@ func newModel(c config) (*Model, error) {
 	}
 	if !m.restyle() {
 		m.notice = text.Lookup(kittui.TextWarning, text.Lookup(kittui.TextThemeUnknown, c.theme, kittui.ThemeTerminal))
+	}
+	if bindErr != nil {
+		m.notice = text.Lookup(kittui.TextWarning, bindErr.Error())
 	}
 	if len(c.warnings) > 0 {
 		m.notice = text.Lookup(kittui.TextWarning, c.warnings[0])
@@ -259,10 +277,20 @@ func (m *Model) reload() tea.Cmd {
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmd := m.update(msg)
 	m.syncSessions()
-	return m, cmd
+	if m.area != areaSessions {
+		m.viewSel = false
+	}
+	wait := m.syncTerm()
+	m.settleFocus()
+	return m, tea.Batch(cmd, wait)
 }
 
 func (m *Model) update(msg tea.Msg) tea.Cmd {
+	// One layer decides about every input: while the view has the focus, nothing below sees it, also not in
+	// an InputBatch, which comes back here message by message.
+	if m.viewFocused() && m.focusedInput(msg) {
+		return nil
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
@@ -270,6 +298,8 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		return tea.Batch(m.reload(), m.tick())
 	case refreshMsg:
 		m.apply(msg)
+	case term.FrameMsg, term.ExitedMsg:
+		return m.termMsg(msg)
 	case stopMsg:
 		return m.applyStop(msg)
 	case tea.ForegroundColorMsg:
@@ -445,6 +475,9 @@ func since(now, then time.Time) string {
 
 // input is the input focus of the screen.
 func (m *Model) input() kittui.InputFocus {
+	if m.viewFocused() {
+		return kittui.InputNativeTerminal
+	}
 	if m.helpOpen || m.modal != nil {
 		return kittui.InputNavigation
 	}
@@ -520,11 +553,24 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 			return nil
 		case actStop:
 			return m.beginStop()
+		case actEnter:
+			if m.area == areaSessions && m.focus() == kittui.ZoneRows && m.viewRunning() {
+				m.focusView()
+				return nil
+			}
 		case actRight:
 			if m.area == areaProjects && m.focus() == kittui.ZoneRows {
 				return m.openProject()
 			}
+			if m.area == areaSessions && m.focus() == kittui.ZoneRows {
+				m.selectView()
+				return nil
+			}
 		case actLeft:
+			if m.viewSel {
+				m.viewSel = false
+				return nil
+			}
 			if m.area == areaSessions || m.area == areaInbox {
 				return m.enter(areaProjects)
 			}
@@ -559,6 +605,8 @@ func (m *Model) back() {
 	switch {
 	case m.full:
 		m.full = false
+	case m.viewSel:
+		m.viewSel = false
 	case m.area != areaProjects:
 		m.enter(areaProjects)
 	}
@@ -575,6 +623,7 @@ func (m *Model) openProject() tea.Cmd {
 // enter shows an area.
 func (m *Model) enter(area kittui.AreaID) tea.Cmd {
 	m.area = area
+	m.viewSel = false
 	m.setZone(kittui.ZoneRows)
 	if area == areaSettings {
 		m.setZone(kittui.ZoneForm)
@@ -638,7 +687,7 @@ func (m *Model) navKey(id kittui.ActionID, msg tea.KeyPressMsg, focus kittui.Inp
 
 func (m *Model) openHelp() {
 	help, err := kittui.NewHelp(kittui.HelpSpec{Topics: helptopics.All(), Screen: m.footer(),
-		Global: []kittui.ActionID{actHelp, actArea, actReload, actBack, actQuit}, Keys: helpKeys()}, m.keys, m.text)
+		Global: []kittui.ActionID{actHelp, actArea, actReload, actBack, actQuit, actViewExit}, Keys: helpKeys()}, m.keys, m.text)
 	if err != nil {
 		m.failure = m.text.Lookup(kittui.TextError, err.Error())
 		return
@@ -651,7 +700,7 @@ func (m *Model) openHelp() {
 func (m *Model) syncFocus() {
 	rows := m.focus() == kittui.ZoneRows
 	m.projList.SetFocused(rows && m.area == areaProjects)
-	m.sessList.SetFocused(rows && m.area == areaSessions)
+	m.sessList.SetFocused(rows && m.area == areaSessions && !m.viewSel)
 }
 
 // marks are the status marks of the header.
@@ -689,6 +738,11 @@ func (m *Model) footer() []kittui.Hint {
 		// The keys of the screen behind a question do nothing; the question shows its own.
 		return nil
 	}
+	if m.viewFocused() {
+		// Under the native terminal input the kit leaves out every hint that names an action, so the line is a
+		// label whose text resolves the placeholder of the exit action to the keys in force.
+		return []kittui.Hint{{Label: textKeyViewFocus}}
+	}
 	nav := []kittui.Hint{
 		{Action: actUp, Label: kittui.TextKeyChoose, Kind: kittui.HintNavigation},
 		{Action: actDown, Label: kittui.TextKeyChoose, Kind: kittui.HintNavigation},
@@ -719,7 +773,11 @@ func (m *Model) footer() []kittui.Hint {
 		if len(m.sessByID) > 0 {
 			common = append([]kittui.Hint{{Action: actStop, Label: textKeyStop, Priority: 1}}, common...)
 		}
-		return m.listFooter(m.sessList, len(m.sessByID), "", common, nav)
+		var enter kittui.TextID
+		if m.viewSel && m.viewRunning() {
+			enter = textKeyControl
+		}
+		return m.listFooter(m.sessList, len(m.sessByID), enter, common, nav)
 	}
 	return common
 }

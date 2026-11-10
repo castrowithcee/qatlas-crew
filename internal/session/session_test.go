@@ -72,6 +72,9 @@ func TestServerSelection(t *testing.T) {
 	if got := strings.Join(s.AttachCommand("abcdefghijk2", "mnopqrstuvw7"), " "); got != "tmux -L qcrew attach -t p-abcdefghijk2:s-mnopqrstuvw7" {
 		t.Errorf("attach: %q", got)
 	}
+	if got := strings.Join(s.EmbeddedAttachCommand("abcdefghijk2", "mnopqrstuvw7"), " "); got != "tmux -L qcrew -u attach -t p-abcdefghijk2:s-mnopqrstuvw7" {
+		t.Errorf("embedded attach: %q", got)
+	}
 	env[SocketEnv] = "/run/x/../sock"
 	if s, err = ServerFromEnv(getenv); err != nil || !slices.Equal(s.args(), []string{"-S", "/run/sock"}) {
 		t.Fatalf("socket server: %v, %v", s.args(), err)

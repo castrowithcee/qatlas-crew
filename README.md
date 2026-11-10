@@ -3,8 +3,8 @@
 qcrew is a program with a terminal interface for working with several AI agent command line tools, such as
 Claude Code and Codex, in parallel across several projects.
 
-**Status: early.** The terminal interface shows projects and sessions; it does not yet embed a session view,
-start sessions or add projects, which the command line does. Expect breaking changes before v1.0.0.
+**Status: early.** The terminal interface shows projects and sessions and embeds the chosen session; it does
+not yet start sessions or add projects, which the command line does. Expect breaking changes before v1.0.0.
 
 ## Installation
 
@@ -62,6 +62,17 @@ The mouse does what the keys do: click a tab, a key shown in the header or foote
 With the mouse on, hold Shift to select text. Settings holds theme, language, start area, icons and the mouse;
 they are kept in `tui.yaml` in `~/.qatlas/qcrew` (or in `QCREW_DIR`). If `tmux` is missing the projects still
 show and the interface names the next step, `qcrew setup`. `NO_COLOR` is respected.
+
+### Session view
+
+In the Sessions area the session under the cursor runs live beside or below the list, with a status line of
+tool, status and context fill. Right selects the view, `f` shows it alone, left or `esc` go back. `enter` on a
+session or on the selected view, or a click into the view, gives it the focus: every key (also `q`, `esc` and
+`ctrl+c`), every paste and every click and wheel step inside it then goes to the session. `ctrl+]` returns to
+qcrew and never reaches the session; `tui.yaml` can add one more key for it under `keys`, for example
+`viewexit: ctrl+x`. A key that breaks the key rules or that another action holds is reported at start and
+ignored. The wheel acts only in programs that ask for mouse reports; a shell or Claude Code does not scroll
+with it. The view has no text selection of its own for copying.
 
 ## Service
 

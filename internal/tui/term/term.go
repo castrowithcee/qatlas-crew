@@ -41,6 +41,9 @@ type Term struct {
 	ptmx *os.File
 	em   *vt.SafeEmulator
 
+	out   outbox
+	input inputQueue
+
 	dirty  chan struct{} // capacity 1: the screen changed since the last frame
 	frames chan struct{} // capacity 1: a frame is waiting for Next
 	stop   chan struct{} // closed when the child is gone and the output is read
@@ -79,15 +82,24 @@ func Start(argv []string, cols, rows int, opts ...Option) (*Term, error) {
 	if err != nil {
 		return nil, err
 	}
-	t.ptmx = ptmx
+	if t.ptmx, err = pollable(ptmx); err != nil {
+		_ = t.cmd.Process.Kill()
+		_ = t.cmd.Wait()
+		return nil, err
+	}
 	// No callbacks are set: titles, clipboard and similar requests of the program are dropped here and
 	// never forwarded to the outer terminal.
 	t.em = vt.NewSafeEmulator(cols, rows)
 
+	t.out.wake = make(chan struct{}, 1)
+	t.input.wake = make(chan struct{}, 1)
+
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(5)
 	go func() { defer wg.Done(); t.readLoop() }()
 	go func() { defer wg.Done(); t.replyLoop() }()
+	go func() { defer wg.Done(); t.writeLoop() }()
+	go func() { defer wg.Done(); t.inputLoop() }()
 	go func() { defer wg.Done(); throttle(t.clock, FrameInterval, t.dirty, t.stop, t.emitFrame) }()
 	go func() { wg.Wait(); close(t.done) }()
 	return t, nil
@@ -139,19 +151,58 @@ func (t *Term) readLoop() {
 	close(t.stop)
 }
 
-// replyLoop forwards the answers the VT gives to terminal queries (device attributes, cursor position, ...)
-// back to the child. Without a reader the VT would block on its first answer. When the PTY no longer accepts
-// them the answers are discarded.
+// replyLoop moves what the VT sends to the child, the answers to terminal queries and the input of the person,
+// into the outbox. It never waits for the PTY: the VT holds its lock while it writes into the pipe this loop
+// reads, so a loop that blocked on a full PTY would stop readLoop, and a child that waits for its output to
+// be read would never read its input.
 func (t *Term) replyLoop() {
 	buf := make([]byte, 4096)
 	for {
 		n, err := t.em.Read(buf)
 		if n > 0 {
-			_, _ = t.ptmx.Write(buf[:n])
+			t.out.add(buf[:n])
 		}
 		if err != nil {
 			return
 		}
+	}
+}
+
+// writeLoop puts the outbox into the PTY in order. When the PTY no longer accepts input, what is left is
+// discarded.
+func (t *Term) writeLoop() {
+	for {
+		chunk := t.out.take()
+		if len(chunk) == 0 {
+			select {
+			case <-t.out.wake:
+				continue
+			case <-t.stop:
+				t.out.discard()
+				return
+			}
+		}
+		if _, err := t.ptmx.Write(chunk); err != nil {
+			t.out.discard()
+			return
+		}
+	}
+}
+
+// inputLoop turns the queued input into bytes for the child, one item at a time in the order of arrival.
+func (t *Term) inputLoop() {
+	for {
+		send := t.input.take()
+		if send == nil {
+			select {
+			case <-t.input.wake:
+				continue
+			case <-t.stop:
+				t.input.discard()
+				return
+			}
+		}
+		send(t.em)
 	}
 }
 
@@ -202,13 +253,45 @@ func (t *Term) View(width, height int) string {
 // Write sends raw input to the program in the PTY.
 func (t *Term) Write(p []byte) (int, error) { return t.ptmx.Write(p) }
 
+// SendKey passes a key press to the program, encoded as the VT of the program expects it. It never blocks,
+// keeps the order of the calls and does nothing once the client has ended.
+func (t *Term) SendKey(msg tea.KeyPressMsg) {
+	key := vt.KeyPressEvent{Text: msg.Text, Mod: msg.Mod, Code: msg.Code}
+	t.input.add(func(em *vt.SafeEmulator) { em.SendKey(key) })
+}
+
+// Paste passes pasted text to the program once, between the markers of a bracketed paste if the program has
+// asked for them. It never blocks.
+func (t *Term) Paste(text string) {
+	t.input.add(func(em *vt.SafeEmulator) { em.Paste(text) })
+}
+
+// SendMouse passes a click, its release or a wheel step to the program at the cell x, y of its screen,
+// counted from 0. The VT encodes it only in a mouse mode the program has asked for. Other events, motion
+// included, are dropped. It never blocks.
+func (t *Term) SendMouse(msg tea.MouseMsg, x, y int) {
+	m := msg.Mouse()
+	var ev vt.Mouse
+	switch msg.(type) {
+	case tea.MouseClickMsg:
+		ev = vt.MouseClick{X: x, Y: y, Button: m.Button, Mod: m.Mod}
+	case tea.MouseReleaseMsg:
+		ev = vt.MouseRelease{X: x, Y: y, Button: m.Button, Mod: m.Mod}
+	case tea.MouseWheelMsg:
+		ev = vt.MouseWheel{X: x, Y: y, Button: m.Button, Mod: m.Mod}
+	default:
+		return
+	}
+	t.input.add(func(em *vt.SafeEmulator) { em.SendMouse(ev) })
+}
+
 // Resize sets the size of the PTY and of the VT screen.
 func (t *Term) Resize(cols, rows int) error {
 	if cols < 1 || rows < 1 {
 		return errors.New("term: size must be positive")
 	}
 	t.em.Resize(cols, rows)
-	return pty.Setsize(t.ptmx, &pty.Winsize{Rows: uint16(rows), Cols: uint16(cols)})
+	return setSize(t.ptmx, cols, rows)
 }
 
 // Close ends the client and the PTY and waits until every goroutine of the Term has ended. It affects the

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -20,6 +21,10 @@ import (
 // ptyChild makes the test binary run the interface itself, at the terminal the parent test opened.
 const ptyChild = "QCREW_TUI_PTY_CHILD"
 
+// ptyAttach gives the child a session view in which every session runs this shell script, with the session
+// ID as $1.
+const ptyAttach = "QCREW_TUI_PTY_ATTACH"
+
 // TestPtyChild is the interface in the child process of the tests below; it does nothing otherwise.
 func TestPtyChild(t *testing.T) {
 	if os.Getenv(ptyChild) != "1" {
@@ -30,8 +35,12 @@ func TestPtyChild(t *testing.T) {
 		t.Fatal(err)
 	}
 	b := goldenBackend()
-	err = Run(Options{In: os.Stdin, Out: os.Stdout, Prefs: uiprefs.Default(schema),
-		Connect: func(context.Context) (Connection, error) { return b, nil }})
+	opts := Options{In: os.Stdin, Out: os.Stdout, Prefs: uiprefs.Default(schema),
+		Connect: func(context.Context) (Connection, error) { return b, nil }}
+	if script := os.Getenv(ptyAttach); script != "" {
+		opts.Attach = shellAttach(script)
+	}
+	err = Run(opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,4 +174,76 @@ func TestPtyNoColorAtNarrowSize(t *testing.T) {
 		t.Fatalf("a colour was drawn with NO_COLOR: %q", loc)
 	}
 	p.quit()
+}
+
+// byteLog is a session that asks for bracketed paste and the mouse and writes every byte it reads to the
+// file of its session ID in dir.
+func byteLog(dir string) string {
+	return `stty raw -echo; printf '\033[?2004h\033[?1000h\033[?1006h'; echo READY; exec cat > "` + dir + `/$1"`
+}
+
+// waitLog waits until the session of path has read exactly want.
+func waitLog(t *testing.T, path, want string) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		got, err := os.ReadFile(path)
+		if err == nil && string(got) == want {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the session read %q, want %q (%v)", got, want, err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// viewCells are the first cell of the session screen and the cell of the first row of the session list in a
+// model of the same size, counted from 0.
+func viewCells(t *testing.T, cols, rows int) (screenX, screenY, rowX, rowY int) {
+	t.Helper()
+	m := newViewModel(t, i18n.English, goldenBackend(), cols, rows, shellAttach("exec sleep 600"))
+	step(m, "enter")
+	rowX, rowY = cellOf(t, m, "refactor parser")
+	for _, p := range m.mouseParts {
+		if p.view {
+			return p.rect.X, p.rect.Y + 1, rowX, rowY
+		}
+	}
+	t.Fatal("no session view on the screen")
+	return 0, 0, 0, 0
+}
+
+// With the focus on the session view q, a paste and the wheel go to the session and the interface keeps
+// running; ctrl+] gives the keys and the wheel back to the interface.
+func TestPtyFocusedViewTakesTheInput(t *testing.T) {
+	const cols, rows = 120, 40
+	dir := t.TempDir()
+	log := filepath.Join(dir, "s1")
+	p := startPty(t, cols, rows, "PATH="+os.Getenv("PATH"), ptyAttach+"="+byteLog(dir))
+	p.waitAfter(0, "refactor parser")
+	at := p.mark()
+	p.key("\r")
+	p.waitAfter(at, "READY")
+	at = p.mark()
+	p.key("\r")
+	p.waitAfter(at, "back to qcrew")
+
+	p.key("q")
+	waitLog(t, log, "q")
+	p.key("\x1b[200~l1\nl2\x1b[201~")
+	waitLog(t, log, "q\x1b[200~l1\nl2\x1b[201~")
+	sx, sy, rx, ry := viewCells(t, cols, rows)
+	p.key(fmt.Sprintf("\x1b[<65;%d;%dM", sx+3, sy+2))
+	waitLog(t, log, "q\x1b[200~l1\nl2\x1b[201~\x1b[<65;3;2M")
+
+	// ctrl+] arrives as the byte 0x1d and never reaches the session.
+	at = p.mark()
+	p.key("\x1d")
+	p.waitAfter(at, "control the session")
+	// Without the focus the wheel moves the session list, which attaches the next session.
+	p.key(fmt.Sprintf("\x1b[<65;%d;%dM", rx+1, ry+1))
+	waitLog(t, filepath.Join(dir, "s2"), "")
+	p.quit()
+	waitLog(t, log, "q\x1b[200~l1\nl2\x1b[201~\x1b[<65;3;2M")
 }
