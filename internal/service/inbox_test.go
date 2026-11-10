@@ -36,7 +36,7 @@ func TestWaitSignalTable(t *testing.T) {
 		{event(control.EventHookError), "", ""},
 	}
 	for _, c := range cases {
-		kind, text, ok := waitSignal(c.ev)
+		kind, text, ok := waitSignal("claude", c.ev)
 		if kind != c.kind || ok != (c.kind != "") || text != c.text {
 			t.Errorf("%+v: %q %q %v; want %q %q", c.ev, kind, text, ok, c.kind, c.text)
 		}

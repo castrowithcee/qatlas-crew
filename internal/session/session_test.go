@@ -93,14 +93,14 @@ func TestTmuxEnv(t *testing.T) {
 }
 
 func TestParseList(t *testing.T) {
-	out := "@1\t0\t\t\t\t\t\n" + // a window of someone else
-		"@2\t1\tbbbbbbbbbbbb\tpppppppppppp\tshell\t2026-01-02T03:04:06Z\tsecond\ttab\n" +
-		"@3\t0\taaaaaaaaaaaa\tpppppppppppp\tclaude\t2026-01-02T03:04:05Z\tfirst\n" +
+	out := "@1\t0\t\t\t\t\t\t\n" + // a window of someone else
+		"@2\t1\tbbbbbbbbbbbb\tpppppppppppp\tshell\t2026-01-02T03:04:06Z\t\tsecond\ttab\n" +
+		"@3\t0\taaaaaaaaaaaa\tpppppppppppp\tcodex\t2026-01-02T03:04:05Z\t1\tfirst\n" +
 		"broken\n"
 	got := parseList(out)
 	want := []Session{
-		{ID: "aaaaaaaaaaaa", Project: "pppppppppppp", Tool: "claude", Title: "first", Status: StatusRunning,
-			Started: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC), window: "@3"},
+		{ID: "aaaaaaaaaaaa", Project: "pppppppppppp", Tool: "codex", Title: "first", Status: StatusRunning,
+			Started: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC), Bell: true, window: "@3"},
 		{ID: "bbbbbbbbbbbb", Project: "pppppppppppp", Tool: "shell", Title: "second\ttab", Status: StatusExited,
 			Started: time.Date(2026, 1, 2, 3, 4, 6, 0, time.UTC), window: "@2"},
 	}

@@ -46,23 +46,47 @@ func contextValue(x control.Session) any {
 	return int64(*x.ContextPercent)
 }
 
+// signalsValue is where the status comes from, or nil, shown empty and as null, for a tool with one source.
+func signalsValue(x control.Session) any {
+	if x.Signals == "" {
+		return nil
+	}
+	return x.Signals
+}
+
 func sessionObject(x control.Session) output.Object {
-	return output.Object{Fields: []output.Field{
+	o := output.Object{Fields: []output.Field{
 		{Name: "id", Value: x.ID}, {Name: "project", Value: x.Project}, {Name: "tool", Value: x.Tool},
 		{Name: "title", Value: x.Title}, {Name: "status", Value: x.Status},
 		{Name: "since", Value: x.Since.Format(time.RFC3339)}, {Name: "context_percent", Value: contextValue(x)},
 		{Name: "started_at", Value: x.StartedAt.Format(time.RFC3339)},
 	}}
+	if x.Signals != "" {
+		o.Fields = append(o.Fields, output.Field{Name: "signals", Value: x.Signals})
+	}
+	return o
 }
 
 func writeSessions(w io.Writer, format output.Format, sessions []control.Session) error {
+	// The column signals exists only while a session has the field, which keeps the output for the other tools
+	// as it was.
+	columns := sessionColumns
+	for _, x := range sessions {
+		if x.Signals != "" {
+			columns = append(sessionColumns[:len(sessionColumns):len(sessionColumns)], "signals")
+		}
+	}
 	rows := make([]output.Row, 0, len(sessions))
 	for _, x := range sessions {
-		rows = append(rows, output.Row{"id": x.ID, "project": x.Project, "tool": x.Tool, "title": x.Title,
+		row := output.Row{"id": x.ID, "project": x.Project, "tool": x.Tool, "title": x.Title,
 			"status": x.Status, "since": x.Since.Format(time.RFC3339), "context_percent": contextValue(x),
-			"started_at": x.StartedAt.Format(time.RFC3339)})
+			"started_at": x.StartedAt.Format(time.RFC3339)}
+		if len(columns) > len(sessionColumns) {
+			row["signals"] = signalsValue(x)
+		}
+		rows = append(rows, row)
 	}
-	return output.Encode(w, format, output.Collection{Columns: sessionColumns, Rows: rows})
+	return output.Encode(w, format, output.Collection{Columns: columns, Rows: rows})
 }
 
 // safeWord is a word a POSIX shell reads as it is.
@@ -156,8 +180,9 @@ func newSessionCommand(program *cobracli.Program, access *serviceAccess) *cobra.
 		Short: "List the sessions with id, project, tool, title, status, since, context and start time",
 		Long: "list shows the sessions of every project, or of the project given with --project, in the order\n" +
 			"they started. The status is running, waiting, idle, error or exited, and since is when the session took\n" +
-			"it. Claude Code reports all five; the other tools show running while they run and exited after they\n" +
-			"ended. context_percent is how full the tool's context window is, empty while unknown.",
+			"it. Claude Code and Codex report all five; shell shows running while it runs and exited after it\n" +
+			"ended. context_percent is how full the tool's context window is, empty while unknown. A column\n" +
+			"signals appears if a Codex session is listed: hooks if its hooks report, fallback until then.",
 		Args: cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
 			cl, err := access.projectClient(c.Context())

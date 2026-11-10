@@ -13,7 +13,6 @@ func TestPlainCommand(t *testing.T) {
 		tool string
 		want []string
 	}{
-		{Codex, []string{"codex"}},
 		{Shell, []string{"/usr/bin/zsh", "-l"}},
 	}
 	for _, c := range cases {
@@ -33,11 +32,12 @@ func TestPlainCommand(t *testing.T) {
 			t.Errorf("SHELL=%q: %q", shell, got)
 		}
 	}
-	a, _ := Plain(Codex, getenv)
-	if got := a.Command(Session{Args: []string{"--x"}}); !slices.Equal(got, []string{"codex", "--x"}) {
+	a, _ := Plain(Shell, getenv)
+	env["SHELL"] = "/bin/zsh"
+	if got := a.Command(Session{Args: []string{"--x"}}); !slices.Equal(got, []string{"/bin/zsh", "-l", "--x"}) {
 		t.Errorf("with arguments: %q", got)
 	}
-	for _, tool := range []string{"vim", Claude} {
+	for _, tool := range []string{"vim", Claude, Codex} {
 		if _, err := Plain(tool, getenv); !errors.Is(err, ErrUnknownTool) {
 			t.Errorf("%s: %v", tool, err)
 		}
@@ -45,9 +45,14 @@ func TestPlainCommand(t *testing.T) {
 }
 
 func TestHasHooks(t *testing.T) {
-	for tool, want := range map[string]bool{Claude: true, Codex: false, Shell: false} {
+	for tool, want := range map[string]bool{Claude: true, Codex: true, Shell: false} {
 		if HasHooks(tool) != want {
 			t.Errorf("HasHooks(%s) != %v", tool, want)
+		}
+	}
+	for tool, want := range map[string]bool{Claude: true, Codex: false, Shell: false} {
+		if TakesSessionID(tool) != want || ReportsEnd(tool) != want {
+			t.Errorf("%s: TakesSessionID or ReportsEnd != %v", tool, want)
 		}
 	}
 }

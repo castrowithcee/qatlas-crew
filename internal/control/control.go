@@ -188,7 +188,8 @@ type ProjectListResult struct {
 
 // Session is an agent session as the channel carries it. Status is running, waiting, idle, error or exited;
 // Since is when it took that status. ContextPercent is how full the tool's context window is, and absent
-// while unknown.
+// while unknown. Signals names where the status of a tool with two sources comes from, hooks or fallback;
+// it is absent for the other tools.
 type Session struct {
 	ID             string    `json:"id"`
 	Project        string    `json:"project"`
@@ -198,7 +199,15 @@ type Session struct {
 	Since          time.Time `json:"since"`
 	ContextPercent *int      `json:"context_percent,omitempty"`
 	StartedAt      time.Time `json:"started_at"`
+	Signals        string    `json:"signals,omitempty"`
 }
+
+// The values of Session.Signals: the tool's hooks report the status, or only the coarser signals of the
+// session's own flags do, until a first hook event arrives.
+const (
+	SignalsHooks    = "hooks"
+	SignalsFallback = "fallback"
+)
 
 // SessionStartArgs are the arguments of OpSessionStart. Project is the id or the name of a project; an empty
 // Title means the tool.
@@ -282,8 +291,18 @@ var sessionID = regexp.MustCompile(`^[a-z2-7]{12}$`)
 // ValidSessionID reports whether id has the form of a session id.
 func ValidSessionID(id string) bool { return sessionID.MatchString(id) }
 
-// The source of an event that a tool's hook reports.
-const EventSourceHook = "hook"
+// The sources of an event: a tool's hook, or the notify program of a tool, whose signal is coarser and is
+// ignored once the hooks of the session report.
+const (
+	EventSourceHook   = "hook"
+	EventSourceNotify = "notify"
+)
+
+var agentSessionID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+// ValidAgentSessionID reports whether id has the form of the id a tool knows a session by: a UUID in lower
+// case.
+func ValidAgentSessionID(id string) bool { return agentSessionID.MatchString(id) }
 
 // The events that qcrew itself derives from what a hook received. Their names contain a dot, which no name of
 // a tool's own event has.
@@ -321,6 +340,8 @@ type EventPushArgs struct {
 	// Start is the reason a session started.
 	Start string `json:"start,omitempty"`
 	Text  string `json:"text,omitempty"`
+	// AgentSession is the id the tool itself knows the session by, if the event carries it.
+	AgentSession string `json:"agent_session,omitempty"`
 	// ContextPercent is how full the context window is, from 0 to 100.
 	ContextPercent *int `json:"context_percent,omitempty"`
 }
@@ -343,10 +364,12 @@ func (a EventPushArgs) Validate() error {
 	switch {
 	case !ValidSessionID(a.Session):
 		return errors.New("the session id is not valid")
-	case a.Source != EventSourceHook:
+	case a.Source != EventSourceHook && a.Source != EventSourceNotify:
 		return errors.New("the source is not known")
 	case len(a.Event) > MaxEventName || !eventName.MatchString(a.Event):
 		return errors.New("the event name is not valid")
+	case a.AgentSession != "" && !ValidAgentSessionID(a.AgentSession):
+		return errors.New("the tool session id is not valid")
 	case a.ContextPercent != nil && (*a.ContextPercent < 0 || *a.ContextPercent > 100):
 		return errors.New("the context percentage is out of range")
 	}
