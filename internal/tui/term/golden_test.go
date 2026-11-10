@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/castrowithcee/qatlas-crew/internal/testenv"
 )
 
 var update = flag.Bool("update", false, "rewrite the golden files")
@@ -27,6 +29,11 @@ var goldenSizes = map[string][2]int{"narrow": {60, 30}, "wide": {120, 40}}
 func visible(s string) string { return strings.ReplaceAll(s, "\x1b", `\e`) }
 
 func TestGoldenColoredShell(t *testing.T) {
+	// tmux versions differ in whether COLORTERM alone lets 24-bit colors through; the feature makes the
+	// picture the same on all of them.
+	if _, err := testenv.Tmux(t).Run("set-option", "-sa", "terminal-features", ",xterm-256color:RGB"); err != nil {
+		t.Fatal(err)
+	}
 	for name, size := range goldenSizes {
 		t.Run(name, func(t *testing.T) {
 			cols, rows := size[0], size[1]

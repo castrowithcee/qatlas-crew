@@ -33,9 +33,10 @@ func TestChildEnvironment(t *testing.T) {
 	t.Setenv("TMUX", "/tmp/x,1,0")
 	t.Setenv("TMUX_PANE", "%1")
 	t.Setenv("TERM", "dumb")
-	tm := startDirect(t, `echo "T[${TMUX-unset}] P[${TMUX_PANE-unset}] E[$TERM]"; exec sleep 60`, 60, 3)
-	waitFor(t, "output", func() bool { return strings.Contains(plain(tm), "E[") })
-	if got := plain(tm); !strings.Contains(got, "T[unset] P[unset] E[xterm-256color]") {
+	t.Setenv("COLORTERM", "")
+	tm := startDirect(t, `echo "T[${TMUX-unset}] P[${TMUX_PANE-unset}] E[$TERM] C[$COLORTERM]"; exec sleep 60`, 60, 3)
+	waitFor(t, "output", func() bool { return strings.Contains(plain(tm), "C[") })
+	if got := plain(tm); !strings.Contains(got, "T[unset] P[unset] E[xterm-256color] C[truecolor]") {
 		t.Errorf("unexpected environment: %q", got)
 	}
 }

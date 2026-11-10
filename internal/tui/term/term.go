@@ -53,7 +53,8 @@ type Term struct {
 var nextID atomic.Int64
 
 // Start runs argv in a new PTY of cols x rows cells. The command sees the environment of the process without
-// TMUX, so a tmux client does not refuse to attach from inside tmux, and with TERM=xterm-256color.
+// TMUX, so a tmux client does not refuse to attach from inside tmux, and with the terminal type and color
+// support of the VT instead of those of the outer terminal.
 func Start(argv []string, cols, rows int, opts ...Option) (*Term, error) {
 	if len(argv) == 0 {
 		return nil, errors.New("term: empty command")
@@ -92,16 +93,18 @@ func Start(argv []string, cols, rows int, opts ...Option) (*Term, error) {
 	return t, nil
 }
 
-// childEnv returns env without the tmux variables and with the terminal type of the VT.
+// childEnv returns env without the tmux variables and with the terminal type and color support of the VT.
+// COLORTERM tells a tmux client that the VT takes 24-bit colors.
 func childEnv(env []string) []string {
-	out := make([]string, 0, len(env)+1)
+	out := make([]string, 0, len(env)+2)
 	for _, kv := range env {
-		if strings.HasPrefix(kv, "TMUX=") || strings.HasPrefix(kv, "TMUX_PANE=") || strings.HasPrefix(kv, "TERM=") {
+		if strings.HasPrefix(kv, "TMUX=") || strings.HasPrefix(kv, "TMUX_PANE=") || strings.HasPrefix(kv, "TERM=") ||
+			strings.HasPrefix(kv, "COLORTERM=") {
 			continue
 		}
 		out = append(out, kv)
 	}
-	return append(out, "TERM=xterm-256color")
+	return append(out, "TERM=xterm-256color", "COLORTERM=truecolor")
 }
 
 // ID identifies this instance in its messages.
