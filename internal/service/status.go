@@ -24,8 +24,26 @@ const (
 // maxHistory is how many status changes the service keeps for a session.
 const maxHistory = 64
 
-// eventPaneDead names the change that tmux's report of an ended program causes.
-const eventPaneDead = "pane-dead"
+// The changes the service itself causes: tmux's report of an ended program, the ring of the bell of a Codex
+// window, and the end of the time a failed model request waits for a follow-up event.
+const (
+	eventPaneDead = "pane-dead"
+	eventBell     = "qcrew.bell"
+	eventScreen   = "qcrew.screen"
+)
+
+// failedRequestAfter is how long a failed model request of Codex stands without a further event before the
+// session counts as failed. The tool goes on to its prompt after a failure and says nothing more; a retry
+// would send events within that time.
+const failedRequestAfter = 10 * time.Second
+
+// The names of Codex events that the mapping singles out. requestUserInputTool is the tool Codex asks a
+// question with; its name is not yet proven against the real tool.
+const (
+	requestUserInputTool = "request_user_input"
+	codexPostModel       = "PostModelRequest"
+	codexTurnComplete    = "agent-turn-complete"
+)
 
 // transition is one change of the status of a session.
 type transition struct {
@@ -51,7 +69,23 @@ func (c change) changed() bool { return c.From != c.To }
 
 type sessionState struct {
 	project string
-	hooked  bool
+	tool    string
+	// reportsEnd is set for a tool whose program ended without saying so was lost: an error, not an exit.
+	reportsEnd bool
+	// hooks is set for a Codex session from its first hook event on; before that, and without hooks, the
+	// coarser signals of the session's flags are what the status follows.
+	hooks bool
+	// booted is set once a Codex session showed that it waits for input, on the screen or by an event; until
+	// then it is starting and running.
+	booted bool
+	// scanned is set after the first look at the screen of a Codex session; screenErr is the error line the
+	// last look found, so that only a new one counts.
+	scanned   bool
+	screenErr string
+	// failedAt is when a failed model request was reported and nothing followed yet; zero otherwise.
+	failedAt time.Time
+	// agent is the id of the tool's own session last recorded in the window.
+	agent string
 	// startedHere is set for a session this service started, whose whole life it has watched.
 	startedHere bool
 	// seen is set once an event arrived since the service started.
@@ -85,7 +119,8 @@ func newTracker(now func() time.Time, log *slog.Logger) *tracker {
 func (t *tracker) get(x session.Session) *sessionState {
 	st, ok := t.states[x.ID]
 	if !ok {
-		st = &sessionState{project: x.Project, hooked: adapter.HasHooks(x.Tool), status: x.Status, since: x.Started}
+		st = &sessionState{project: x.Project, tool: x.Tool, reportsEnd: adapter.ReportsEnd(x.Tool), status: x.Status,
+			since: x.Started}
 		if x.Status == statusExited {
 			st.since = t.now()
 		}
@@ -140,7 +175,7 @@ func (t *tracker) observe(list []session.Session) []change {
 		from := st.status
 		switch {
 		case st.status == statusExited || st.status == statusError:
-		case st.hooked && (st.startedHere || st.seen):
+		case st.reportsEnd && (st.startedHere || st.seen):
 			// Its SessionEnd would have come first; the tool was lost without it.
 			t.set(x.ID, st, statusError, eventPaneDead)
 		default:
@@ -213,6 +248,9 @@ func (t *tracker) apply(x session.Session, ev control.EventPushArgs) change {
 		}
 		return ch
 	}
+	if x.Tool == adapter.Codex {
+		return t.applyCodex(x, ev, st, ch)
+	}
 	if status, ok := claudeStatus(ev); ok && !st.dead {
 		t.set(x.ID, st, status, ev.Event)
 		ch.To = st.status
@@ -256,4 +294,197 @@ func claudeStatus(ev control.EventPushArgs) (string, bool) {
 		return statusError, true
 	}
 	return "", false
+}
+
+// applyCodex takes in an event of Codex. A notify event is the fallback and is ignored once hooks report; the
+// first hook event ends the fallback for the session. Any hook event ends the wait for a follow-up of a
+// failed model request.
+func (t *tracker) applyCodex(x session.Session, ev control.EventPushArgs, st *sessionState, ch change) change {
+	st.booted = true
+	if ev.Source == control.EventSourceNotify {
+		if st.hooks {
+			return ch
+		}
+	} else {
+		st.hooks, st.failedAt = true, time.Time{}
+	}
+	if st.dead {
+		return ch
+	}
+	if ev.Event == codexPostModel && ev.Type == "failed" {
+		st.failedAt = t.now()
+	}
+	if status, ok := codexStatus(ev); ok {
+		t.set(x.ID, st, status, ev.Event)
+		ch.To = st.status
+	}
+	return ch
+}
+
+// codexStatus is the status an event of Codex sets. Every other event leaves the status as it is; so does a
+// PostModelRequest, whose failure counts only if no event follows (see failDue), and a SessionStart, which
+// Codex sends at the first turn and not at its start. A question asked with request_user_input is waiting and
+// not running. The error from an unreadable payload lasts until an event that sets a status follows.
+func codexStatus(ev control.EventPushArgs) (string, bool) {
+	switch ev.Event {
+	case "UserPromptSubmit", "PreModelRequest", "PostToolUse":
+		return statusRunning, true
+	case "PreToolUse":
+		if ev.Tool == requestUserInputTool {
+			return statusWaiting, true
+		}
+		return statusRunning, true
+	case "PermissionRequest":
+		return statusWaiting, true
+	case "Stop", "Interrupt", codexTurnComplete:
+		return statusIdle, true
+	case "SessionEnd":
+		return statusExited, true
+	case control.EventHookError:
+		return statusError, true
+	}
+	return "", false
+}
+
+// failDue returns the changes of the Codex sessions whose last event was a failed model request that stood
+// for at least after without a further event; they take the status error. Each failure is returned once.
+func (t *tracker) failDue(after time.Duration) []change {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	now := t.now()
+	var due []change
+	for id, st := range t.states {
+		if st.failedAt.IsZero() || now.Sub(st.failedAt) < after {
+			continue
+		}
+		st.failedAt = time.Time{}
+		if st.dead {
+			continue
+		}
+		from := st.status
+		t.set(id, st, statusError, codexPostModel)
+		if st.status != from {
+			due = append(due, change{ID: id, Project: st.project, From: from, To: st.status, Event: codexPostModel})
+		}
+	}
+	slices.SortFunc(due, func(a, b change) int { return strings.Compare(a.ID, b.ID) })
+	return due
+}
+
+// bell takes in the ring of the bell of a Codex window: a prompt that waits for the person. Once hooks report
+// for the session the ring says nothing new and changes nothing. The returned change is the move of the status.
+func (t *tracker) bell(x session.Session) change {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	st := t.get(x)
+	ch := change{ID: x.ID, Project: x.Project, From: st.status, To: st.status, Event: eventBell, Dead: st.dead}
+	if st.hooks || st.dead || x.Tool != adapter.Codex {
+		return ch
+	}
+	t.set(x.ID, st, statusWaiting, eventBell)
+	ch.To = st.status
+	return ch
+}
+
+// inputSent notes that the person's answer was typed into the window of a Codex session that reports no hook
+// events: nothing else tells that the prompt is over. It returns the move of the status.
+func (t *tracker) inputSent(x session.Session) change {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	st := t.get(x)
+	ch := change{ID: x.ID, Project: x.Project, From: st.status, To: st.status, Event: "qcrew.input", Dead: st.dead}
+	if st.hooks || st.dead || x.Tool != adapter.Codex || st.status != statusWaiting {
+		return ch
+	}
+	t.set(x.ID, st, statusRunning, ch.Event)
+	ch.To = st.status
+	return ch
+}
+
+// signals tells where the status of x comes from: hooks or fallback for Codex, empty for the other tools.
+func (t *tracker) signals(x session.Session) string {
+	if x.Tool != adapter.Codex {
+		return ""
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.get(x).hooks {
+		return control.SignalsHooks
+	}
+	return control.SignalsFallback
+}
+
+// fallbackWatch reports whether a live Codex session depends on the fallback, whose bell is only seen when
+// tmux is looked at, so that the service should look often.
+func (t *tracker) fallbackWatch() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for _, st := range t.states {
+		if st.tool == adapter.Codex && (!st.hooks || !st.booted) && !st.dead && st.status != statusExited {
+			return true
+		}
+	}
+	return false
+}
+
+// agentChanged reports whether id is a new id of the tool's own session for x, and notes it as recorded.
+// If the record then fails, forgetAgent takes the note back so that the next event tries again.
+func (t *tracker) agentChanged(x session.Session, id string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	st := t.get(x)
+	if st.agent == id {
+		return false
+	}
+	st.agent = id
+	return true
+}
+
+func (t *tracker) forgetAgent(x session.Session) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.get(x).agent = ""
+}
+
+// screenWatch reports whether the screen of a Codex session is worth a look: while it starts, in the fallback,
+// and while a failed model request waits for its follow-up.
+func (t *tracker) screenWatch(x session.Session) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	st := t.get(x)
+	return x.Tool == adapter.Codex && !st.dead && st.status != statusExited &&
+		(!st.booted || !st.hooks || !st.failedAt.IsZero())
+}
+
+// screen takes in what a look at the screen of a Codex session showed (see codex.ReadScreen). A session that
+// starts becomes idle when the screen shows it waits for input; an event that came first has the precedence.
+// An error line that was not there at the last look is an error in the fallback, and with hooks only if a
+// failed model request waits for its follow-up. The first look only notes the line. The returned change
+// carries the move of the status.
+func (t *tracker) screen(x session.Session, ready bool, errLine string) change {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	st := t.get(x)
+	ch := change{ID: x.ID, Project: x.Project, From: st.status, To: st.status, Event: eventScreen, Dead: st.dead}
+	if st.dead || x.Tool != adapter.Codex {
+		return ch
+	}
+	if ready && !st.booted {
+		st.booted = true
+		if st.status == statusRunning {
+			t.set(x.ID, st, statusIdle, eventScreen)
+		}
+	}
+	fresh := st.scanned && errLine != "" && errLine != st.screenErr
+	st.scanned, st.screenErr = true, errLine
+	switch {
+	case !fresh:
+	case !st.hooks:
+		t.set(x.ID, st, statusError, eventScreen)
+	case !st.failedAt.IsZero():
+		st.failedAt = time.Time{}
+		t.set(x.ID, st, statusError, eventScreen)
+	}
+	ch.To = st.status
+	return ch
 }

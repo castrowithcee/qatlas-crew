@@ -20,7 +20,15 @@ var ErrUnknownTool = errors.New("unknown tool")
 
 // HasHooks reports whether the tool tells qcrew its status through hooks. The status of the other tools is
 // what tmux shows.
-func HasHooks(tool string) bool { return tool == Claude }
+func HasHooks(tool string) bool { return tool == Claude || tool == Codex }
+
+// TakesSessionID reports whether qcrew gives the tool the id it knows a session by. Codex does not take one;
+// it names its session in its first event, and qcrew then records it.
+func TakesSessionID(tool string) bool { return tool == Claude }
+
+// ReportsEnd reports whether the tool always says that it ends, so that a program which ended without saying
+// so was lost. Codex sends no end event in every case, so for it tmux decides.
+func ReportsEnd(tool string) bool { return tool == Claude }
 
 // Session is what an adapter needs to know about one session.
 type Session struct {
@@ -36,6 +44,9 @@ type Session struct {
 	AgentSession string
 	// Args are further arguments for the tool's command line.
 	Args []string
+	// Model and Effort are the model and the reasoning effort of the session, for tools that take them; empty
+	// means the tool's own default.
+	Model, Effort string
 }
 
 // Adapter is the knowledge about one agent command line tool.
@@ -44,6 +55,8 @@ type Adapter interface {
 	Name() string
 	// Command returns the command line that starts the tool for s.
 	Command(s Session) []string
+	// Env returns the variables, as NAME=value, that only the tool's process gets.
+	Env(s Session) []string
 	// Prepare creates what the command line needs, before the tool starts.
 	Prepare(s Session) error
 	// Cleanup removes what Prepare created. It never fails: a rest is harmless.
@@ -63,16 +76,15 @@ func (p plain) Name() string { return p.name }
 func (p plain) Command(s Session) []string {
 	return append(p.command(), s.Args...)
 }
+func (plain) Env(Session) []string  { return nil }
 func (plain) Prepare(Session) error { return nil }
 func (plain) Cleanup(Session)       {}
 
-// Plain returns the adapter of a tool without hooks: codex or shell. getenv reads the environment the
-// session inherits; the shell tool starts the login shell of SHELL. Claude has its own adapter in package
-// claude.
+// Plain returns the adapter of a tool that needs no preparation: the shell. getenv reads the environment the
+// session inherits; the shell tool starts the login shell of SHELL. Claude and Codex have their own adapters
+// in the packages claude and codex.
 func Plain(tool string, getenv func(string) string) (Adapter, error) {
 	switch tool {
-	case Codex:
-		return plain{name: tool, command: func() []string { return []string{tool} }}, nil
 	case Shell:
 		return plain{name: tool, command: func() []string {
 			shell := getenv("SHELL")
