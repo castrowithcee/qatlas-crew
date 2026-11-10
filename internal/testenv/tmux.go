@@ -67,6 +67,13 @@ func (s *TmuxServer) Run(args ...string) (string, error) {
 	return out.String(), err
 }
 
+// AttachCommand returns the command line of a tmux client that attaches to target, a session or a
+// session:window, on this server only. The caller runs it in a terminal of its own.
+func (s *TmuxServer) AttachCommand(target string) []string {
+	// -u: the client has no UTF-8 locale of its own in a test.
+	return []string{"tmux", "-S", s.socket, "-f", "/dev/null", "-u", "attach-session", "-t", target}
+}
+
 // Stop ends this server and removes its directory. It never touches another server.
 func (s *TmuxServer) Stop() {
 	_, _ = s.Run("kill-server")
