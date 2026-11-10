@@ -1,0 +1,40 @@
+qcrew                                                                                            [esc] Zurück  [?] Hilfe
+   1 Projekte   2 Postfach  [3 Sessions]  4 Einstellungen   5 Setup                                                     
+------------------------------------------------------------------------------------------------------------------------
+  Projekte  [ + Projekt ] [ entfernen ]  | > Sessions von alpha                          [ claude ] [ codex ] [ shell ] 
+  PROJEKT  POSTFACH                      |   TOOL    TITEL            STATUS              SEIT                          
+> alpha           3                      | > claude  refactor parser  läuft                 1m                          
+  beta            0                      |   codex   write docs       wartet, ohne Hooks    3h                          
+                                         |   claude  fix flaky test   Fehler                1d                          
+                                         |   Session-Ansicht: refactor parser                                           
+                                         | first line                                                                   
+                                         | äöü utf-8 line                                                               
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |                                                                              
+                                         |   Tool: claude  Status: läuft                                                
+/ Suchen  e Session stoppen  c/x/s starten  f Vollbild  r Neu laden  1-5 Bereich  q Beenden       up/down Auswählen  1/3

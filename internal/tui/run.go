@@ -23,6 +23,9 @@ type Options struct {
 	PrefsWarnings []string
 	// SavePrefs writes the preferences to the device; nil when this device has no place for them.
 	SavePrefs func(uiprefs.Prefs) error
+	// Attach gives the command that attaches a terminal to the window of a session, run in the session
+	// view; nil shows no session view.
+	Attach func(project, id string) []string
 	// Executable names the qcrew program that runs an installation; nil takes the running program.
 	Executable func() (string, error)
 }
@@ -37,7 +40,12 @@ func PrefsSchema() (uiprefs.Schema, error) {
 	for _, id := range areaIDs() {
 		ids = append(ids, string(id))
 	}
-	return uiprefs.Schema{Themes: themes.Names(), Areas: ids, DefaultArea: string(areaProjects)}, nil
+	// The key table lets tui.yaml add a key to the actions that take one; the charset only spells labels.
+	keys, err := kittui.NewKeymap(keyTable(), kittui.CharsetASCII)
+	if err != nil {
+		return uiprefs.Schema{}, err
+	}
+	return uiprefs.Schema{Themes: themes.Names(), Areas: ids, DefaultArea: string(areaProjects), Keys: keys}, nil
 }
 
 // Run shows the interface on the terminal of opts until the person quits.
@@ -49,7 +57,8 @@ func Run(opts Options) error {
 	m, err := newModel(config{ctx: ctx, connect: opts.Connect, lang: uiprefs.Language(opts.Prefs.Language),
 		theme: opts.Prefs.Theme, profile: profile, charset: kittui.DetectCharsetMode(env),
 		start: kittui.AreaID(opts.Prefs.Start), now: time.Now, warnings: opts.PrefsWarnings, mouse: opts.Prefs.MouseEnabled,
-		prefs: opts.Prefs, savePrefs: opts.SavePrefs, executable: opts.Executable, home: userHome(), folders: osFolders()})
+		prefs: opts.Prefs, savePrefs: opts.SavePrefs, executable: opts.Executable, home: userHome(), folders: osFolders(),
+		attach: opts.Attach})
 	if err != nil {
 		return err
 	}
@@ -58,6 +67,7 @@ func Run(opts Options) error {
 		tea.WithFilter(input.Filter), tea.WithColorProfile(colorProfile(profile)))
 	input.Attach(program.Send)
 	_, err = program.Run()
+	m.closeTerm()
 	if m.conn != nil {
 		_ = m.conn.Close()
 	}
