@@ -1,0 +1,40 @@
+qcrew                                                                                               [esc] back  [?] help
+   1 Projects   2 Inbox   3 Sessions   4 Settings  [5 Setup]                                                            
+------------------------------------------------------------------------------------------------------------------------
+> Programs qcrew needs                                                                                                  
+  PROGRAM  STATUS     VERSION   INSTALL                              INTEGRATION                                        
+  tmux     installed  tmux 3.4                                                                                          
+  claude   missing              [install]                            not needed                                         
+> codex    missing              see https://github.com/openai/codex  missing [configure]                                
+  Result                    #= Codex hooks ================================================#                            
+No lines yet.               | ! Set up the Codex hooks of qcrew?                           |                            
+                            |                                                              |                            
+                            | qcrew hands the terminal to 'qcrew setup codex-hooks'. It    |                            
+                            | shows the whole change again and asks before it writes; both |                            
+                            | files are backed up first, only the entries of qcrew change, |                            
+                            | and no hook of anyone else is approved.                      |                            
+                            | /home/u/.codex/hooks.json                                    |                            
+                            | +{                                                           |                            
+                            | +  "hooks": {                                                |                            
+                            | +    "Stop": [                                               |                            
+                            | + {"hooks": [{"type": "command", "command": "/opt/qcrew hook |                            
+                            | codex", "async": true}]}                                     |                            
+                            | +    ]                                                       |                            
+                            | +  }                                                         |                            
+                            | /home/u/.codex/config.toml                                   |                            
+                            | +[hooks.state."/home/u/.codex/hooks.json:stop:0:0"]          |                            
+                            | +trusted_hash = "sha256:72b8d41a"                            |                            
+                            | ... 2 more changed lines                                     |                            
+                            | Stop: 1 other hook group(s) move up and must be approved     |                            
+                            | again in Codex                                               |                            
+                            |                                                              |                            
+                            | [ configure ]  > cancel <                                    |                            
+                            | y configure  n/esc/enter cancel                              |                            
+                            #==============================================================#                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+[ L following ]  [ / search ]  [ w wrap lines on ]  [ t timestamps off ]                                                
+                                                                                                                     3/3

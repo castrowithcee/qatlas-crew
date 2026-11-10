@@ -54,6 +54,14 @@ func signalsValue(x control.Session) any {
 	return x.Signals
 }
 
+// integrationValue is the state of the hooks a session depends on while they are not in place, or nil.
+func integrationValue(x control.Session) any {
+	if x.Integration == "" {
+		return nil
+	}
+	return x.Integration
+}
+
 func sessionObject(x control.Session) output.Object {
 	o := output.Object{Fields: []output.Field{
 		{Name: "id", Value: x.ID}, {Name: "project", Value: x.Project}, {Name: "tool", Value: x.Tool},
@@ -64,25 +72,36 @@ func sessionObject(x control.Session) output.Object {
 	if x.Signals != "" {
 		o.Fields = append(o.Fields, output.Field{Name: "signals", Value: x.Signals})
 	}
+	if x.Integration != "" {
+		o.Fields = append(o.Fields, output.Field{Name: "integration", Value: x.Integration})
+	}
 	return o
 }
 
 func writeSessions(w io.Writer, format output.Format, sessions []control.Session) error {
-	// The column signals exists only while a session has the field, which keeps the output for the other tools
-	// as it was.
-	columns := sessionColumns
+	// The columns signals and integration exist only while a session has the field, which keeps the output for
+	// the other tools as it was.
+	columns := sessionColumns[:len(sessionColumns):len(sessionColumns)]
+	signals, integ := false, false
 	for _, x := range sessions {
-		if x.Signals != "" {
-			columns = append(sessionColumns[:len(sessionColumns):len(sessionColumns)], "signals")
-		}
+		signals, integ = signals || x.Signals != "", integ || x.Integration != ""
+	}
+	if signals {
+		columns = append(columns, "signals")
+	}
+	if integ {
+		columns = append(columns, "integration")
 	}
 	rows := make([]output.Row, 0, len(sessions))
 	for _, x := range sessions {
 		row := output.Row{"id": x.ID, "project": x.Project, "tool": x.Tool, "title": x.Title,
 			"status": x.Status, "since": x.Since.Format(time.RFC3339), "context_percent": contextValue(x),
 			"started_at": x.StartedAt.Format(time.RFC3339)}
-		if len(columns) > len(sessionColumns) {
+		if signals {
 			row["signals"] = signalsValue(x)
+		}
+		if integ {
+			row["integration"] = integrationValue(x)
 		}
 		rows = append(rows, row)
 	}
@@ -182,7 +201,9 @@ func newSessionCommand(program *cobracli.Program, access *serviceAccess) *cobra.
 			"they started. The status is running, waiting, idle, error or exited, and since is when the session took\n" +
 			"it. Claude Code and Codex report all five; shell shows running while it runs and exited after it\n" +
 			"ended. context_percent is how full the tool's context window is, empty while unknown. A column\n" +
-			"signals appears if a Codex session is listed: hooks if its hooks report, fallback until then.",
+			"signals appears if a Codex session is listed: hooks if its hooks report, fallback until then. A column\n" +
+			"integration appears while the Codex hooks of qcrew are missing, stale or unknown; such a session reports\n" +
+			"through the fallback. 'qcrew setup codex-hooks' sets them up.",
 		Args: cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
 			cl, err := access.projectClient(c.Context())

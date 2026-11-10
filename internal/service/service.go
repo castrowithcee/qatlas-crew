@@ -93,6 +93,10 @@ type server struct {
 	replaced  func() (string, bool, error)
 	every     time.Duration
 	setupEnv  setup.Env
+	// home is the user's home directory; program finds the qcrew program the hooks of a tool call.
+	home    string
+	program func() (string, error)
+	codex   integrationCache
 
 	mu    sync.Mutex
 	conns map[net.Conn]struct{}
@@ -161,11 +165,15 @@ func Run(ctx context.Context, opts Options) error {
 	s := &server{
 		log: logger, started: time.Now().UTC(), version: opts.Version,
 		cancel: cancel, replaced: opts.programReplaced, every: opts.watchEvery, setupEnv: opts.setupEnv, conns: map[net.Conn]struct{}{},
+		home: home, program: opts.Program,
 		projects: projects, status: newTracker(clock, logger), inbox: inbox.NewStore(clock),
 		sessions: session.New(tmuxServer, session.WithDataDir(control.DataDir(home)), session.WithExecutable(opts.Program)),
 	}
 	if s.replaced == nil {
 		s.replaced = localipc.ProgramReplaced
+	}
+	if s.program == nil {
+		s.program = os.Executable
 	}
 	if s.every == 0 {
 		s.every = watchEvery

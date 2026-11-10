@@ -23,6 +23,7 @@ type Backend interface {
 	RemoveProject(ctx context.Context, ref string) (control.Project, error)
 	StartSession(ctx context.Context, args control.SessionStartArgs) (control.Session, error)
 	SetupCheck(ctx context.Context) ([]control.SetupDependency, error)
+	SetupIntegration(ctx context.Context, remove bool) (control.SetupIntegrationResult, error)
 }
 
 // Connection is an open channel to the service.
@@ -81,6 +82,12 @@ func (s *serial) SetupCheck(ctx context.Context) ([]control.SetupDependency, err
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.c.SetupCheck(ctx)
+}
+
+func (s *serial) SetupIntegration(ctx context.Context, remove bool) (control.SetupIntegrationResult, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.c.SetupIntegration(ctx, remove)
 }
 
 func (s *serial) Close() error {

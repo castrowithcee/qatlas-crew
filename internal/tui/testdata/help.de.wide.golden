@@ -22,17 +22,17 @@ qcrew                                                                           
                       | - qcrew inbox list|show|answer|close: see what the sessions wait for and |                      
                       |   answer it, see the inbox-guide topic                                   |                      
                       | - qcrew setup [--check], qcrew setup install <tmux|claude|codex>: show   |                      
-                      |   which of tmux, Claude Code and Codex are installed and, at a terminal, |                      
-                      |   install missing ones after you confirm each command in full (a sudo    |                      
-                      |   command asks twice); --check only looks and exits 0 even if something  |                      
-                      |   is missing                                                             |                      
+                      |   which of tmux, Claude Code and Codex are installed and whether the     |                      
+                      |   Codex hooks of qcrew are configured, missing or stale, and, at a       |                      
+                      |   terminal, install missing ones after you confirm each command in full  |                      
+                      |   (a sudo command asks twice) and set up the Codex hooks after you       |                      
+                      |   confirm the change shown; --check only looks and exits 0 even if       |                      
+                      |   something is missing                                                   |                      
+                      | - qcrew setup codex-hooks [--remove]: set up or renew the Codex hooks of |                      
+                      |   qcrew and their approvals in the Codex configuration, or take them     |                      
+                      |   out, after showing the change and asking; see the session-guide topic  |                      
                       | - qcrew self-update [version], qcrew self-update status: update qcrew    |                      
-                      |   itself to the latest stable release or to a given newer one from its   |                      
-                      |   signed GitHub releases; status shows the installed version and the     |                      
-                      |   latest release and changes nothing (updating needs --confirm)          |                      
-                      | - qcrew help <topic>: show a help topic                                  |                      
-                      |                                                                          |                      
-                      | Zeilen 1-27 von 44                                                       |                      
+                      | Zeilen 1-27 von 49                                                       |                      
                       |                                                                          |                      
                       | left/right Thema  up/down Scrollen  pgup/pgdown Seite  esc/? Schließen   |                      
                       #==========================================================================#                      

@@ -2,10 +2,10 @@ qcrew                                                                           
    1 Projects   2 Inbox   3 Sessions   4 Settings  [5 Setup]                                                            
 ------------------------------------------------------------------------------------------------------------------------
 > Programs qcrew needs                                                                                                  
-  PROGRAM  STATUS     VERSION   INSTALL                                                                                 
+  PROGRAM  STATUS     VERSION   INSTALL                              INTEGRATION                                        
   tmux     installed  tmux 3.4                                                                                          
-> claude   installed  v1.0                                                                                              
-  codex    missing              see https://github.com/openai/codex                                                     
+> claude   installed  v1.0                                           not needed                                         
+  codex    missing              see https://github.com/openai/codex  missing [configure]                                
   Result                                                                                                                
   claude: the install command ended with exit code 0.                                                                   
   claude: found now, v1.0.                                                                                              

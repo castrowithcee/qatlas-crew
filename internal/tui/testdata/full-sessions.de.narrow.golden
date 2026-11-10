@@ -2,10 +2,10 @@ qcrew                                [esc] Zurück  [?] Hilfe
   1 Projekte 2 Postfach [3 Sessions] 4 Einstellungen 5 Setup
 ------------------------------------------------------------
 > Sessions von alpha         [ claude ] [ codex ] [ shell ] 
-  TOOL    TITEL            STATUS  SEIT                     
-> claude  refactor parser  läuft     1m                     
-  codex   write docs       wartet    3h                     
-  claude  fix flaky test   Fehler    1d                     
+  TOOL    TITEL            STATUS              SEIT         
+> claude  refactor parser  läuft                 1m         
+  codex   write docs       wartet, ohne Hooks    3h         
+  claude  fix flaky test   Fehler                1d         
                                                             
                                                             
                                                             

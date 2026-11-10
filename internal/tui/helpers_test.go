@@ -43,6 +43,36 @@ type fakeBackend struct {
 	setup      []control.SetupDependency
 	setupErr   error
 	setupReads int
+	// hooks is the change of the Codex hooks the service previews; hooksAsked records whether each ask was
+	// for a removal.
+	hooks      control.SetupIntegrationResult
+	hooksErr   error
+	hooksAsked []bool
+}
+
+// demoPreview is a change of the Codex hooks as the service previews it.
+var demoPreview = control.SetupIntegrationResult{Preview: "--- /dev/null\n+++ /home/u/.codex/hooks.json\n@@ -0,0 +1,6 @@\n" +
+	"+{\n+  \"hooks\": {\n+    \"Stop\": [\n+      {\"hooks\": [{\"type\": \"command\", \"command\": \"/opt/qcrew hook codex\", \"async\": true}]}\n+    ]\n+  }\n" +
+	"--- /home/u/.codex/config.toml\n+++ /home/u/.codex/config.toml\n@@ -1,1 +1,3 @@\n model = \"gpt-x\"\n" +
+	"+[hooks.state.\"/home/u/.codex/hooks.json:stop:0:0\"]\n+trusted_hash = \"sha256:72b8d41a\"\n+[hooks.state.\"/home/u/.codex/hooks.json:interrupt:0:0\"]\n+trusted_hash = \"sha256:0c1d\"\n",
+	Warnings: []string{"Stop: 1 other hook group(s) move up and must be approved again in Codex"}}
+
+func (f *fakeBackend) SetupIntegration(_ context.Context, remove bool) (control.SetupIntegrationResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.hooksAsked = append(f.hooksAsked, remove)
+	return f.hooks, f.hooksErr
+}
+
+// setHooks is what a change of the Codex hooks does to the machine of the fake service.
+func (f *fakeBackend) setHooks(state string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i := range f.setup {
+		if f.setup[i].Integration != "" && f.setup[i].Integration != control.IntegrationNotNeeded {
+			f.setup[i].Integration = state
+		}
+	}
 }
 
 func demoBackend() *fakeBackend {
@@ -53,14 +83,17 @@ func demoBackend() *fakeBackend {
 		},
 		sessions: []control.Session{
 			{ID: "s1", Project: "p-alpha", Tool: "claude", Title: "refactor parser", Status: "running", Since: epoch.Add(-90 * time.Second)},
-			{ID: "s2", Project: "p-alpha", Tool: "codex", Title: "write docs", Status: "waiting", Since: epoch.Add(-3 * time.Hour)},
+			{ID: "s2", Project: "p-alpha", Tool: "codex", Title: "write docs", Status: "waiting", Since: epoch.Add(-3 * time.Hour),
+				Integration: control.IntegrationMissing},
 			{ID: "s3", Project: "p-beta", Tool: "shell", Title: "build watcher", Status: "idle", Since: epoch.Add(-5 * time.Second)},
 		},
 		setup: []control.SetupDependency{
 			{Name: session.Program, Installed: true, Version: "tmux 3.4", Source: "https://github.com/tmux/tmux/wiki/Installing"},
-			{Name: "claude", Install: "curl -fsSL https://claude.ai/install.sh | bash", Source: "https://code.claude.com/docs/en/setup"},
-			{Name: "codex", Source: "https://github.com/openai/codex"},
+			{Name: "claude", Install: "curl -fsSL https://claude.ai/install.sh | bash", Source: "https://code.claude.com/docs/en/setup",
+				Integration: control.IntegrationNotNeeded},
+			{Name: "codex", Source: "https://github.com/openai/codex", Integration: control.IntegrationMissing},
 		},
+		hooks: demoPreview,
 	}
 }
 
@@ -92,7 +125,13 @@ type execRecorder struct {
 
 func (r *execRecorder) run(cmd *exec.Cmd, done tea.ExecCallback) tea.Cmd {
 	r.calls = append(r.calls, append([]string(nil), cmd.Args...))
-	if r.err == nil && len(cmd.Args) == 4 {
+	switch {
+	case r.err != nil:
+	case len(cmd.Args) >= 3 && cmd.Args[2] == "codex-hooks" && len(cmd.Args) == 4:
+		r.b.setHooks(control.IntegrationMissing)
+	case len(cmd.Args) >= 3 && cmd.Args[2] == "codex-hooks":
+		r.b.setHooks(control.IntegrationConfigured)
+	case len(cmd.Args) == 4:
 		r.b.markInstalled(cmd.Args[3])
 	}
 	return func() tea.Msg { return done(r.err) }

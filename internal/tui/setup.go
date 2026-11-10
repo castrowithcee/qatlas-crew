@@ -34,8 +34,12 @@ type setupState struct {
 	// installing is the program whose installation holds the terminal.
 	installing string
 	// pending is the result of an installation that waits for the check made after it.
-	pending    *installResult
-	executable func() (string, error)
+	pending *installResult
+	// previewing is set while the service computes a change of the Codex hooks; hooking while that change
+	// holds the terminal; pendingHooks is its result, which waits for the check made after it.
+	previewing, hooking bool
+	pendingHooks        *installResult
+	executable          func() (string, error)
 	// execProcess hands the terminal to a program; tests replace it.
 	execProcess func(*exec.Cmd, tea.ExecCallback) tea.Cmd
 	tones       map[string]kittui.TextStyle
@@ -76,7 +80,7 @@ func (m *Model) newSetup(executable func() (string, error)) (*setupState, error)
 func (m *Model) newSetupWidgets(text kittui.Translator) (*kittui.List, *kittui.LogView, error) {
 	list, err := kittui.NewList(kittui.ListSpec{Columns: []kittui.Column{
 		{Title: textColProgram}, {Title: textColStatus, Tone: m.setupTone},
-		{Title: textColVersion}, {Title: textColInstall, Flex: true}},
+		{Title: textColVersion}, {Title: textColInstall, Flex: true}, {Title: textColIntegration}},
 		Keys: listKeys(), Search: kittui.SearchByKey, Empty: textSetupEmpty}, m.keys, text)
 	if err != nil {
 		return nil, nil, err
@@ -125,7 +129,7 @@ func (m *Model) fillSetup() {
 			status, tone = m.text.Lookup(textSetupInstalled), kittui.StyleActive
 		}
 		s.tones[status] = tone
-		items[i] = kittui.ListItem{ID: id, Cells: []string{d.Name, status, d.Version, m.installCell(d)}}
+		items[i] = kittui.ListItem{ID: id, Cells: []string{d.Name, status, d.Version, m.installCell(d), m.integrationCell(d)}}
 	}
 	if err := s.list.SetItems(items); err != nil {
 		m.failure = m.text.Lookup(kittui.TextError, m.text.Lookup(textErrRows, err.Error()))
@@ -160,7 +164,7 @@ func (m *Model) setupEntered() tea.Cmd { return m.setupReload() }
 func (m *Model) checkSetup() tea.Cmd {
 	s := m.setup
 	if s.checking {
-		if s.pending != nil {
+		if s.pending != nil || s.pendingHooks != nil {
 			s.recheck = true
 		}
 		return nil
@@ -197,6 +201,10 @@ func (m *Model) applySetup(msg setupMsg) tea.Cmd {
 			m.logInstall(*s.pending, nil, msg.err)
 			s.pending = nil
 		}
+		if s.pendingHooks != nil {
+			m.logHooks(*s.pendingHooks, nil, msg.err)
+			s.pendingHooks = nil
+		}
 		return nil
 	}
 	s.failure, s.deps, s.loaded = "", msg.deps, true
@@ -209,6 +217,10 @@ func (m *Model) applySetup(msg setupMsg) tea.Cmd {
 		m.logInstall(*s.pending, msg.deps, nil)
 		s.pending = nil
 	}
+	if s.pendingHooks != nil {
+		m.logHooks(*s.pendingHooks, msg.deps, nil)
+		s.pendingHooks = nil
+	}
 	return nil
 }
 
@@ -219,7 +231,7 @@ func (m *Model) beginInstall() tea.Cmd {
 		return nil
 	}
 	s, t := m.setup, m.text
-	if s.installing != "" {
+	if s.installing != "" || s.hooking || s.previewing {
 		m.warn(t.Lookup(textSetupBusy))
 		return nil
 	}
@@ -269,23 +281,29 @@ func (m *Model) runInstall(name string) tea.Cmd {
 func (m *Model) installDone(msg installDoneMsg) tea.Cmd {
 	s := m.setup
 	s.installing = ""
-	res := installResult{name: msg.name, err: msg.err}
+	res := exitResult(msg.name, msg.err)
+	s.pending = &res
+	return m.checkSetup()
+}
+
+// exitResult is how a program the terminal was handed to ended.
+func exitResult(name string, err error) installResult {
+	res := installResult{name: name, err: err}
 	var coded interface{ ExitCode() int }
 	switch {
-	case msg.err == nil:
-	case errors.As(msg.err, &coded):
+	case err == nil:
+	case errors.As(err, &coded):
 		res.code = coded.ExitCode()
 	default:
 		res.code = -1
 	}
-	s.pending = &res
-	return m.checkSetup()
+	return res
 }
 
 // logInstall adds the result of an installation to the log: how the command ended, whether the program is
 // found now, and the next step.
 func (m *Model) logInstall(res installResult, deps []control.SetupDependency, checkErr error) {
-	t, s := m.text, m.setup
+	t := m.text
 	var lines []string
 	if res.code < 0 {
 		lines = append(lines, t.Lookup(textLogNoStart, res.name, res.err.Error()))
@@ -313,6 +331,12 @@ func (m *Model) logInstall(res installResult, deps []control.SetupDependency, ch
 	default:
 		lines = append(lines, t.Lookup(textLogNotFound, res.name), t.Lookup(textNextPath))
 	}
+	m.appendLog(lines)
+}
+
+// appendLog adds lines to the log of the area, keeping the newest setupLogLines.
+func (m *Model) appendLog(lines []string) {
+	s := m.setup
 	at := m.now()
 	var added []kittui.LogLine
 	for _, l := range lines {
@@ -329,8 +353,16 @@ func (m *Model) logInstall(res installResult, deps []control.SetupDependency, ch
 func (m *Model) setupFooter(common, nav []kittui.Hint) []kittui.Hint {
 	s := m.setup
 	if id, ok := s.list.Selected(); ok {
-		if d := s.byID[id]; !d.Installed && d.Install != "" {
+		d := s.byID[id]
+		if !d.Installed && d.Install != "" {
 			common = append([]kittui.Hint{{Action: actInstall, Label: textKeyInstall, Priority: 1}}, common...)
+		}
+		if remove, can := hooksAction(d); can {
+			label := textKeyConfigure
+			if remove {
+				label = textKeyRemoveHooks
+			}
+			common = append([]kittui.Hint{{Action: actHooks, Label: label, Priority: 1}}, common...)
 		}
 	}
 	return m.listFooter(s.list, len(s.deps), "", common, nav)

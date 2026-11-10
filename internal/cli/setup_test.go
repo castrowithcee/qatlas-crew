@@ -12,6 +12,8 @@ import (
 	"github.com/castrowithcee/qatlas-kit/cli"
 	"github.com/castrowithcee/qatlas-kit/output"
 
+	"github.com/castrowithcee/qatlas-crew/internal/adapter/codex/integration"
+	"github.com/castrowithcee/qatlas-crew/internal/control"
 	"github.com/castrowithcee/qatlas-crew/internal/setup"
 )
 
@@ -25,7 +27,7 @@ var sampleSetup = []setup.Status{
 func TestSetupOutputGolden(t *testing.T) {
 	for _, format := range []output.Format{output.FormatTable, output.FormatJSON} {
 		var out bytes.Buffer
-		if err := writeSetup(&out, format, sampleSetup); err != nil {
+		if err := writeSetup(&out, format, sampleSetup, codexState{status: control.IntegrationMissing}); err != nil {
 			t.Fatal(err)
 		}
 		golden(t, "setup-check."+string(format), out.Bytes())
@@ -72,6 +74,11 @@ func (h *fakeHost) install(t *testing.T, goos string) {
 		}
 		return nil
 	})
+	// Unit tests touch no files: the state of the Codex hooks is unknown here; the integration tests set them up
+	// in a test home.
+	setupHost.codex = func() (integration.Config, error) {
+		return integration.Config{}, errors.New("no Codex home in unit tests")
+	}
 	setupHost.confirm = func(q string) error {
 		h.questions = append(h.questions, q)
 		if len(h.replies) == 0 {
@@ -223,5 +230,27 @@ func TestSetupCommandFailureAndMissingPath(t *testing.T) {
 	h.failRun, h.noPath = nil, true
 	if code, _, errOut := run(t, "setup", "install", setup.Claude); code != 1 || !strings.Contains(errOut, "not found in PATH") {
 		t.Fatalf("not in PATH: code %d, err %q", code, errOut)
+	}
+}
+
+func TestSetupShowsTheIntegration(t *testing.T) {
+	atTerminal(t, false)
+	h := &fakeHost{found: []string{setup.Tmux, setup.Claude, setup.Codex}}
+	h.install(t, "linux")
+	code, out, errOut := run(t, "setup", "--check")
+	if code != 0 || !strings.Contains(out, "not-needed") || !strings.Contains(out, "unknown") ||
+		!strings.Contains(errOut, "codex hooks: no Codex home in unit tests") {
+		t.Fatalf("code %d, out %q, err %q", code, out, errOut)
+	}
+	code, out, _ = run(t, "setup", "--output", "json")
+	if code != 0 || !strings.Contains(out, `"integration":"unknown"`) || !strings.Contains(out, `"integration":"not-needed"`) {
+		t.Fatalf("json: code %d, out %q", code, out)
+	}
+	// An unknown state offers nothing, so no terminal is needed.
+	if code, _, errOut := run(t, "setup"); code != 0 {
+		t.Fatalf("setup: code %d, err %q", code, errOut)
+	}
+	if code, _, errOut := run(t, "setup", "codex-hooks"); code != 2 || !strings.Contains(errOut, "needs a terminal") {
+		t.Fatalf("codex-hooks without a terminal: code %d, err %q", code, errOut)
 	}
 }

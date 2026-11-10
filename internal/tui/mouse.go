@@ -148,7 +148,7 @@ func (m *Model) rowClick(list *kittui.List, res kittui.MouseResult) tea.Cmd {
 		return m.openProject()
 	}
 	if open != "" && list == m.setup.list {
-		return m.beginInstall()
+		return m.openSetupRow()
 	}
 	return nil
 }

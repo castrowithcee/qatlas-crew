@@ -1,4 +1,4 @@
-NAME    STATUS     VERSION   INSTALL
-tmux    installed  tmux 3.4  
-claude  missing              curl -fsSL https://claude.ai/install.sh | bash
-codex   missing              see https://github.com/openai/codex
+NAME    STATUS     VERSION   INSTALL                                         INTEGRATION
+tmux    installed  tmux 3.4                                                  
+claude  missing              curl -fsSL https://claude.ai/install.sh | bash  not-needed
+codex   missing              see https://github.com/openai/codex             missing

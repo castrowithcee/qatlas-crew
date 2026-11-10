@@ -131,6 +131,36 @@ const (
 	textNextPath       kittui.TextID = "next.path"
 	textNextFailed     kittui.TextID = "next.failed"
 	textNextCheck      kittui.TextID = "next.check"
+
+	// The Codex hooks in the Setup area and the session list.
+	textColIntegration  kittui.TextID = "col.integration"
+	textIntegNotNeeded  kittui.TextID = "integ.notneeded"
+	textIntegConfigured kittui.TextID = "integ.configured"
+	textIntegMissing    kittui.TextID = "integ.missing"
+	textIntegStale      kittui.TextID = "integ.stale"
+	textIntegUnknown    kittui.TextID = "integ.unknown"
+	textIntegConfigure  kittui.TextID = "integ.configure"
+	textIntegRemove     kittui.TextID = "integ.remove"
+	textKeyHooks        kittui.TextID = "key.hooks"
+	textKeyConfigure    kittui.TextID = "key.configure"
+	textKeyRemoveHooks  kittui.TextID = "key.removehooks"
+	textHooksBusy       kittui.TextID = "hooks.busy"
+	textHooksNothing    kittui.TextID = "hooks.nothing"
+	textHooksUnknown    kittui.TextID = "hooks.unknown"
+	textHooksNoChange   kittui.TextID = "hooks.nochange"
+	textTitleHooks      kittui.TextID = "title.hooks"
+	textAskHooks        kittui.TextID = "ask.hooks"
+	textAskHooksRemove  kittui.TextID = "ask.hooksremove"
+	textWhatHooks       kittui.TextID = "what.hooks"
+	textWhatHooksRemove kittui.TextID = "what.hooksremove"
+	textDetailMore      kittui.TextID = "detail.more"
+	textAnswerConfigure kittui.TextID = "answer.configure"
+	textLogHooksExit    kittui.TextID = "log.hooksexit"
+	textLogHooksNoStart kittui.TextID = "log.hooksnostart"
+	textLogHooksState   kittui.TextID = "log.hooksstate"
+	textLogHooksNoCheck kittui.TextID = "log.hooksnocheck"
+	textNextHooksFailed kittui.TextID = "next.hooksfailed"
+	textSessionNoHooks  kittui.TextID = "session.nohooks"
 )
 
 func catalog() i18n.Catalogs[kittui.TextID] {
@@ -256,6 +286,35 @@ func catalog() i18n.Catalogs[kittui.TextID] {
 			textNextPath:       "Next step: open a new shell or add the folder the installer named to PATH, then press r.",
 			textNextFailed:     "Next step: read the output in the terminal, fix the cause and press i to try again. Exit code 2 means the command was not confirmed or needs a terminal.",
 			textNextCheck:      "Next step: press r to check again.",
+
+			textColIntegration:  "Integration",
+			textIntegNotNeeded:  "not needed",
+			textIntegConfigured: "configured",
+			textIntegMissing:    "missing",
+			textIntegStale:      "stale",
+			textIntegUnknown:    "unknown",
+			textIntegConfigure:  "[configure]",
+			textIntegRemove:     "[remove]",
+			textKeyHooks:        "Codex hooks",
+			textKeyConfigure:    "configure hooks",
+			textKeyRemoveHooks:  "remove hooks",
+			textHooksBusy:       "A change is running; wait for it.",
+			textHooksNothing:    "Only Codex has hooks to set up here.",
+			textHooksUnknown:    "The state of the Codex hooks is unknown: %s",
+			textHooksNoChange:   "The Codex hooks need no change.",
+			textTitleHooks:      "Codex hooks",
+			textAskHooks:        "Set up the Codex hooks of qcrew?",
+			textAskHooksRemove:  "Remove the Codex hooks of qcrew?",
+			textWhatHooks:       "qcrew hands the terminal to 'qcrew setup codex-hooks'. It shows the whole change again and asks before it writes; both files are backed up first, only the entries of qcrew change, and no hook of anyone else is approved.",
+			textWhatHooksRemove: "qcrew hands the terminal to 'qcrew setup codex-hooks --remove'. It shows the whole change again and asks before it writes; both files are backed up first, and only the entries of qcrew go.",
+			textDetailMore:      "... %d more changed lines",
+			textAnswerConfigure: "configure",
+			textLogHooksExit:    "Codex hooks: the command ended with exit code %d.",
+			textLogHooksNoStart: "Codex hooks: the command could not be started: %s",
+			textLogHooksState:   "Codex hooks now: %s.",
+			textLogHooksNoCheck: "Codex hooks: the check afterwards failed: %s",
+			textNextHooksFailed: "Next step: read the output in the terminal and press h to try again. Exit code 2 means the change was not confirmed or needs a terminal.",
+			textSessionNoHooks:  "%s, no hooks",
 		},
 		i18n.German: {
 			textAreaProjects: "Projekte",
@@ -378,6 +437,35 @@ func catalog() i18n.Catalogs[kittui.TextID] {
 			textNextPath:       "Nächster Schritt: eine neue Shell öffnen oder den Ordner, den der Installer nennt, in PATH aufnehmen, dann r drücken.",
 			textNextFailed:     "Nächster Schritt: die Ausgabe im Terminal lesen, die Ursache beheben und i drücken, um es erneut zu versuchen. Exit-Code 2 heißt: der Befehl wurde nicht bestätigt oder braucht ein Terminal.",
 			textNextCheck:      "Nächster Schritt: r drücken, um erneut zu prüfen.",
+
+			textColIntegration:  "Integration",
+			textIntegNotNeeded:  "nicht nötig",
+			textIntegConfigured: "eingerichtet",
+			textIntegMissing:    "fehlt",
+			textIntegStale:      "veraltet",
+			textIntegUnknown:    "unbekannt",
+			textIntegConfigure:  "[einrichten]",
+			textIntegRemove:     "[entfernen]",
+			textKeyHooks:        "Codex-Hooks",
+			textKeyConfigure:    "Hooks einrichten",
+			textKeyRemoveHooks:  "Hooks entfernen",
+			textHooksBusy:       "Eine Änderung läuft; warte darauf.",
+			textHooksNothing:    "Nur Codex hat hier Hooks zum Einrichten.",
+			textHooksUnknown:    "Der Zustand der Codex-Hooks ist unbekannt: %s",
+			textHooksNoChange:   "Die Codex-Hooks brauchen keine Änderung.",
+			textTitleHooks:      "Codex-Hooks",
+			textAskHooks:        "Codex-Hooks von qcrew einrichten?",
+			textAskHooksRemove:  "Codex-Hooks von qcrew entfernen?",
+			textWhatHooks:       "qcrew übergibt das Terminal an 'qcrew setup codex-hooks'. Dort wird die ganze Änderung noch einmal gezeigt und vor dem Schreiben gefragt; beide Dateien werden vorher gesichert, nur die Einträge von qcrew ändern sich, und kein fremder Hook wird freigegeben.",
+			textWhatHooksRemove: "qcrew übergibt das Terminal an 'qcrew setup codex-hooks --remove'. Dort wird die ganze Änderung noch einmal gezeigt und vor dem Schreiben gefragt; beide Dateien werden vorher gesichert, und nur die Einträge von qcrew werden entfernt.",
+			textDetailMore:      "... %d weitere geänderte Zeilen",
+			textAnswerConfigure: "einrichten",
+			textLogHooksExit:    "Codex-Hooks: Der Befehl endete mit Exit-Code %d.",
+			textLogHooksNoStart: "Codex-Hooks: Der Befehl ließ sich nicht starten: %s",
+			textLogHooksState:   "Codex-Hooks jetzt: %s.",
+			textLogHooksNoCheck: "Codex-Hooks: Die Prüfung danach schlug fehl: %s",
+			textNextHooksFailed: "Nächster Schritt: die Ausgabe im Terminal lesen und h drücken, um es noch einmal zu versuchen. Exit-Code 2 heißt, die Änderung wurde nicht bestätigt oder braucht ein Terminal.",
+			textSessionNoHooks:  "%s, ohne Hooks",
 		},
 	})
 }

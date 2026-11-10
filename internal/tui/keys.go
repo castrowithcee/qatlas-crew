@@ -26,10 +26,12 @@ const (
 	actStop kittui.ActionID = "stop"
 	// actInstall asks to install the program under the cursor of the Setup area.
 	actInstall kittui.ActionID = "install"
-	actToggle  kittui.ActionID = "toggle"
-	actNext    kittui.ActionID = "next"
-	actPrev    kittui.ActionID = "prev"
-	actSave    kittui.ActionID = "save"
+	// actHooks asks to set up or remove the Codex hooks from the Setup area.
+	actHooks  kittui.ActionID = "hooks"
+	actToggle kittui.ActionID = "toggle"
+	actNext   kittui.ActionID = "next"
+	actPrev   kittui.ActionID = "prev"
+	actSave   kittui.ActionID = "save"
 	// actAdd opens the dialog that adds a project, actRemove asks to remove the chosen one.
 	actAdd    kittui.ActionID = "add"
 	actRemove kittui.ActionID = "remove"
@@ -76,6 +78,7 @@ func keyTable() []kittui.Action {
 		act(actCodex, kittui.LevelLetter, textKeyCodex, "x"),
 		act(actShell, kittui.LevelLetter, textKeyShell, "s"),
 		act(actInstall, kittui.LevelLetter, textKeyInstall, "i"),
+		act(actHooks, kittui.LevelLetter, textKeyHooks, "h"),
 		// The kit takes no replacement for ctrl+], so tui.yaml can only add a key beside it.
 		{ID: actViewExit, Level: kittui.LevelGlobal, DefaultKeys: []string{"ctrl+]"}, Help: textKeyViewExit,
 			Rebind: kittui.RebindExtra},

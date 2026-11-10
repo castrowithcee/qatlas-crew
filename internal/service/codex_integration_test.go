@@ -62,7 +62,7 @@ func TestCodexSessionOverTheChannel(t *testing.T) {
 	clock := testenv.NewFakeClock(time.Date(2030, 1, 2, 3, 4, 5, 0, time.UTC))
 	r := newInboxRig(t, clock)
 	s := r.newCodex()
-	if s.Status != "running" || s.Signals != control.SignalsFallback {
+	if s.Status != "running" || s.Signals != control.SignalsFallback || s.Integration != control.IntegrationMissing {
 		t.Fatalf("a started session: %+v", s)
 	}
 	r.waitFor("the tool on the screen", func() bool { return strings.Contains(r.screen(s), "fake codex ready") })

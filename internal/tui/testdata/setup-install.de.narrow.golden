@@ -2,10 +2,10 @@ qcrew                                [esc] Zurück  [?] Hilfe
   1 Projekte 2 Postfach 3 Sessions 4 Einstellungen [5 Setup]
 ------------------------------------------------------------
 > Programme, die qcrew braucht                              
-  PROGRAMM  STATUS       VERSION   INSTALLATION             
+  PROGRAMM  STATUS       VERSION   INSTALLATION  INTEGRATION
   tmux      installiert  tmux 3.4                           
-> claude    fehlt                  [installieren]           
-  codex     fehlt                  siehe https://github.com~
+> claude    fehlt                  [installier~  nicht nötig
+  codex     fehlt                  siehe https~  fehlt [ein~
   Ergebnis                                                  
 No#= Programm installieren ==============================#  
   | ! claude installieren?                               |  

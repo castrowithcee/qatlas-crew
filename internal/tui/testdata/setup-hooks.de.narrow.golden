@@ -1,0 +1,30 @@
+qcrew                                [esc] Zurück  [?] Hilfe
+  1 Projekte 2 Postfach 3 Sessions 4 Einstellungen [5 Setup]
+------------------------------------------------------------
+> #= Codex-Hooks ========================================#  
+  | ! Codex-Hooks von qcrew einrichten?                  |ON
+  |                                                      |  
+  | qcrew übergibt das Terminal an 'qcrew setup codex-   |ig
+> | hooks'. Dort wird die ganze Änderung noch einmal     |n~
+  | gezeigt und vor dem Schreiben gefragt; beide Dateien |  
+No| werden vorher gesichert, nur die Einträge von qcrew  |  
+  | ändern sich, und kein fremder Hook wird freigegeben. |  
+  | /home/u/.codex/hooks.json                            |  
+  | +{                                                   |  
+  | +  "hooks": {                                        |  
+  | +    "Stop": [                                       |  
+  | + {"hooks": [{"type": "command", "command":          |  
+  | "/opt/qcrew hook codex", "async": true}]}            |  
+  | +    ]                                               |  
+  | +  }                                                 |  
+  | /home/u/.codex/config.toml                           |  
+  | +[hooks.state."/home/u/.codex/hooks.json:stop:0:0"]  |  
+  | +trusted_hash = "sha256:72b8d41a"                    |  
+  | ... 2 weitere geänderte Zeilen                       |  
+  | Stop: 1 other hook group(s) move up and must be      |  
+  | approved again in Codex                              |  
+  |                                                      |  
+  | [ einrichten ]  > abbrechen <                        |  
+  | y einrichten  n/esc/enter abbrechen                  |  
+[ #======================================================#  
+                                                         3/3

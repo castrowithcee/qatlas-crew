@@ -65,7 +65,8 @@ const (
 	OpInboxAnswer = "inbox.answer"
 	OpInboxClose  = "inbox.close"
 
-	OpSetupCheck = "setup.check"
+	OpSetupCheck       = "setup.check"
+	OpSetupIntegration = "setup.integration"
 )
 
 // The codes of a failed answer. They are fixed words, never text built from a request.
@@ -151,11 +152,43 @@ type SetupDependency struct {
 	Sudo bool `json:"sudo,omitempty"`
 	// Source is the page of the program's maker that documents the installation.
 	Source string `json:"source"`
+	// Integration is whether the entries the program needs in its own configuration are in place, one of the
+	// Integration values; absent for a program that has none.
+	Integration string `json:"integration,omitempty"`
+	// IntegrationProblems say what is stale, or why the state is unknown, one line each.
+	IntegrationProblems []string `json:"integration_problems,omitempty"`
 }
+
+// The values of SetupDependency.Integration and Session.Integration.
+const (
+	IntegrationConfigured = "configured"
+	IntegrationMissing    = "missing"
+	IntegrationStale      = "stale"
+	// IntegrationUnknown means the configuration could not be read.
+	IntegrationUnknown = "unknown"
+	// IntegrationNotNeeded is a program whose sessions carry their configuration themselves.
+	IntegrationNotNeeded = "not-needed"
+)
 
 // SetupCheckResult answers OpSetupCheck. The operation only looks; it installs nothing.
 type SetupCheckResult struct {
 	Dependencies []SetupDependency `json:"dependencies"`
+}
+
+// SetupIntegrationArgs are the arguments of OpSetupIntegration: the change to preview, setting up the Codex
+// hooks or, with Remove, taking them out.
+type SetupIntegrationArgs struct {
+	Remove bool `json:"remove,omitempty"`
+}
+
+// SetupIntegrationResult answers OpSetupIntegration with the change as a unified diff of the files and the
+// warnings about hooks of others. The operation only previews; writing needs a terminal and stays with the
+// command line.
+type SetupIntegrationResult struct {
+	Preview  string   `json:"preview"`
+	Warnings []string `json:"warnings,omitempty"`
+	// Empty is set when the change would leave the files as they are.
+	Empty bool `json:"empty,omitempty"`
 }
 
 // Project is a registered project as the channel carries it.
@@ -189,7 +222,8 @@ type ProjectListResult struct {
 // Session is an agent session as the channel carries it. Status is running, waiting, idle, error or exited;
 // Since is when it took that status. ContextPercent is how full the tool's context window is, and absent
 // while unknown. Signals names where the status of a tool with two sources comes from, hooks or fallback;
-// it is absent for the other tools.
+// it is absent for the other tools. Integration is set for a Codex session while the hooks of qcrew are not
+// in place (missing, stale or unknown); the session then reports through the fallback.
 type Session struct {
 	ID             string    `json:"id"`
 	Project        string    `json:"project"`
@@ -200,6 +234,7 @@ type Session struct {
 	ContextPercent *int      `json:"context_percent,omitempty"`
 	StartedAt      time.Time `json:"started_at"`
 	Signals        string    `json:"signals,omitempty"`
+	Integration    string    `json:"integration,omitempty"`
 }
 
 // The values of Session.Signals: the tool's hooks report the status, or only the coarser signals of the
