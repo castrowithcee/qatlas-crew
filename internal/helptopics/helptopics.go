@@ -25,6 +25,7 @@ Commands:
 - qcrew project add|list|remove: register the directories qcrew works in, see the project-guide topic
 - qcrew session start|list|stop|attach: run agent tools in the projects, see the session-guide topic
 - qcrew inbox list|show|answer|close: see what the sessions wait for and answer it, see the inbox-guide topic
+- qcrew setup [--check], qcrew setup install <tmux|claude|codex>: show which of tmux, Claude Code and Codex are installed and, at a terminal, install missing ones after you confirm each command in full (a sudo command asks twice); --check only looks and exits 0 even if something is missing
 - qcrew self-update [version], qcrew self-update status: update qcrew itself to the latest stable release or to a given newer one from its signed GitHub releases; status shows the installed version and the latest release and changes nothing (updating needs --confirm)
 - qcrew help <topic>: show a help topic`
 

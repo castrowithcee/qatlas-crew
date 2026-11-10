@@ -26,6 +26,7 @@ func (m *Model) setMouse(targets []kittui.Target) {
 type mousePart struct {
 	rect    kittui.Rect
 	list    *kittui.List
+	log     *kittui.LogView
 	form    *kittui.Form
 	targets []kittui.Target
 }
@@ -55,7 +56,7 @@ func (m *Model) partTargets(room kittui.Rect) (targets []kittui.Target, parts []
 func (m *Model) partAt(x, y int) (mousePart, bool) {
 	for _, p := range slices.Backward(m.mouseParts) {
 		r := p.rect
-		if (p.list != nil || p.form != nil) && x >= r.X && x < r.X+r.Width && y >= r.Y && y < r.Y+r.Height {
+		if (p.list != nil || p.form != nil || p.log != nil) && x >= r.X && x < r.X+r.Width && y >= r.Y && y < r.Y+r.Height {
 			return p, true
 		}
 	}
@@ -84,6 +85,8 @@ func (m *Model) mouse(msg tea.MouseMsg) tea.Cmd {
 				p.list.Wheel(res.WheelSteps)
 			case p.form != nil:
 				p.form.Wheel(res.WheelSteps)
+			case p.log != nil:
+				p.log.Wheel(res.WheelSteps)
 			}
 		}
 	case res.Item != "":
@@ -123,10 +126,15 @@ func (m *Model) rowClick(list *kittui.List, res kittui.MouseResult) tea.Cmd {
 		m.area = areaProjects
 	case list == m.sessList:
 		m.area = areaSessions
+	case list == m.setup.list:
+		m.area = areaSetup
 	}
 	m.setZone(kittui.ZoneRows)
 	if open != "" && list == m.projList {
 		return m.openProject()
+	}
+	if open != "" && list == m.setup.list {
+		return m.beginInstall()
 	}
 	return nil
 }

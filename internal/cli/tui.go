@@ -63,10 +63,11 @@ func newTUICommand(access *serviceAccess) *cobra.Command {
 		Long: "tui opens the terminal interface, the same as qcrew without a command at a terminal. On the left it lists\n" +
 			"the projects with the number of open inbox entries; on the right it lists the sessions of the project\n" +
 			"under the cursor with tool, title, status and the time since the status last changed. Areas are switched\n" +
-			"with 1 to 4, or with tab and the left and right keys: Projects, Inbox (it follows in a later release),\n" +
-			"Sessions and Settings. f shows the pane of an area alone and back, x stops the session under the cursor\n" +
-			"after asking, r reads the service again, ? opens the help and q quits. The lists refresh every two\n" +
-			"seconds.\n\n" +
+			"with 1 to 5, or with tab and the left and right keys: Projects, Inbox (it follows in a later release),\n" +
+			"Sessions, Settings and Setup. Setup lists tmux, Claude Code and Codex; i installs the missing program under\n" +
+			"the cursor after asking, by handing the terminal to 'qcrew setup install'. f shows the pane of an area\n" +
+			"alone and back, x stops the session under the cursor after asking, r reads the service again, ? opens\n" +
+			"the help and q quits. The lists refresh every two seconds.\n\n" +
 			"The mouse works too: click a tab, a key in the header or footer, or a row, and turn the wheel to scroll.\n" +
 			"A click does what the key does, so a stop still asks first. With the mouse on, hold Shift to select text.\n\n" +
 			"It needs a terminal on both standard input and output, and starts the service when it is not running,\n" +

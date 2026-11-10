@@ -64,6 +64,8 @@ const (
 	OpInboxGet    = "inbox.get"
 	OpInboxAnswer = "inbox.answer"
 	OpInboxClose  = "inbox.close"
+
+	OpSetupCheck = "setup.check"
 )
 
 // The codes of a failed answer. They are fixed words, never text built from a request.
@@ -133,6 +135,27 @@ type StatusResult struct {
 	StartedAt time.Time `json:"started_at"`
 	// Config is the absolute path of the configuration file the service reads and writes.
 	Config string `json:"config,omitempty"`
+}
+
+// SetupDependency is the state of one program qcrew needs, as OpSetupCheck reports it.
+type SetupDependency struct {
+	// Name is the program's name: tmux, claude or codex.
+	Name      string `json:"name"`
+	Installed bool   `json:"installed"`
+	// Version is the first line of the program's version output; empty if unknown or not installed.
+	Version string `json:"version,omitempty"`
+	// Install is the command that installs a missing program here; empty if it is installed or there is no
+	// supported way on this system.
+	Install string `json:"install,omitempty"`
+	// Sudo is set if the install command runs with sudo.
+	Sudo bool `json:"sudo,omitempty"`
+	// Source is the page of the program's maker that documents the installation.
+	Source string `json:"source"`
+}
+
+// SetupCheckResult answers OpSetupCheck. The operation only looks; it installs nothing.
+type SetupCheckResult struct {
+	Dependencies []SetupDependency `json:"dependencies"`
 }
 
 // Project is a registered project as the channel carries it.

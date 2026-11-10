@@ -1,0 +1,1 @@
+[{"name":"tmux","status":"installed","version":"tmux 3.4","install":""},{"name":"claude","status":"missing","version":"","install":"curl -fsSL https://claude.ai/install.sh | bash"},{"name":"codex","status":"missing","version":"","install":"see https://github.com/openai/codex"}]
