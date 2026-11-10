@@ -257,3 +257,95 @@ func TestFailedPrepareLeavesNothing(t *testing.T) {
 		t.Fatalf("files left behind: %v", entries)
 	}
 }
+
+func TestSendTextAndKey(t *testing.T) {
+	const project = "sendkeys2345"
+	m, _ := newTestManager(t, project)
+	ctx := context.Background()
+	s, err := m.Start(ctx, StartRequest{ProjectID: project, Dir: t.TempDir(), Tool: "shell"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := m.Start(ctx, StartRequest{ProjectID: project, Dir: t.TempDir(), Tool: "shell"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	screen := func(id string) string { text, _ := m.Capture(ctx, id, 20); return text }
+	waitUntil(t, "the prompt", func() bool { return strings.TrimSpace(screen(s.ID)) != "" })
+
+	// The text is typed as characters; a trailing semicolon, a leading dash and text that looks like a tmux
+	// key name stay as they are.
+	for _, text := range []string{"echo $((40+2))", "echo hi;", "-dash", "Enter", `trailing\;`} {
+		if err := m.SendText(ctx, s.ID, text); err != nil {
+			t.Fatalf("SendText(%q): %v", text, err)
+		}
+		waitUntil(t, "the typed text "+text, func() bool {
+			for l := range strings.Lines(screen(s.ID)) {
+				if strings.Contains(l, "$ "+text) || strings.Contains(l, "# "+text) {
+					return true
+				}
+			}
+			return false
+		})
+	}
+	waitUntil(t, "the answer of the command", func() bool {
+		for l := range strings.Lines(screen(s.ID)) {
+			if strings.TrimSpace(l) == "42" {
+				return true
+			}
+		}
+		return false
+	})
+	if strings.TrimSpace(screen(other.ID)) != "" && strings.Contains(screen(other.ID), "echo") {
+		t.Errorf("the text reached another session:\n%s", screen(other.ID))
+	}
+
+	// A key is pressed without Enter after it.
+	if err := m.SendKey(ctx, s.ID, "1"); err != nil {
+		t.Fatal(err)
+	}
+	waitUntil(t, "the key", func() bool {
+		rows := strings.Split(strings.TrimRight(screen(s.ID), "\n "), "\n")
+		return strings.HasSuffix(strings.TrimSpace(rows[len(rows)-1]), "1")
+	})
+
+	for name, err := range map[string]error{
+		"empty text":        m.SendText(ctx, s.ID, ""),
+		"control character": m.SendText(ctx, s.ID, "a\nb"),
+		"escape":            m.SendText(ctx, s.ID, "a\x1bb"),
+		"invalid utf-8":     m.SendText(ctx, s.ID, "a\xffb"),
+		"key with space":    m.SendKey(ctx, s.ID, "C-c x"),
+		"key empty":         m.SendKey(ctx, s.ID, ""),
+		"key option":        m.SendKey(ctx, s.ID, "-l"),
+	} {
+		if !errors.Is(err, ErrInvalid) {
+			t.Errorf("%s: %v, want ErrInvalid", name, err)
+		}
+	}
+	if err := m.SendText(ctx, "zzzzzzzzzzz2", "x"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("unknown session: %v", err)
+	}
+
+	// An ended program takes no input.
+	if _, err := m.Capture(ctx, other.ID, 5); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.SendText(ctx, other.ID, "exit"); err != nil {
+		t.Fatal(err)
+	}
+	waitUntil(t, "the program to end", func() bool {
+		list, _ := m.List(ctx)
+		for _, x := range list {
+			if x.ID == other.ID {
+				return x.Status == StatusExited
+			}
+		}
+		return false
+	})
+	if err := m.SendText(ctx, other.ID, "x"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("an ended session: %v", err)
+	}
+	if err := m.SendKey(ctx, other.ID, "1"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("a key for an ended session: %v", err)
+	}
+}

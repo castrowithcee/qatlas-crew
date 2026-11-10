@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -482,4 +483,61 @@ func lastLines(text string, n, max int) string {
 		}
 	}
 	return strings.Join(rows, "\n")
+}
+
+// keyName is the form of a key SendKey sends: the name of a plain key such as 1 or Escape.
+var keyName = regexp.MustCompile(`^[A-Za-z0-9]{1,16}$`)
+
+// live returns the session with the given id if its window still runs the tool; an ended one cannot take input.
+func (m *Manager) live(ctx context.Context, id string) (Session, error) {
+	s, err := m.find(ctx, id)
+	if err != nil {
+		return Session{}, err
+	}
+	if s.Status == StatusExited {
+		return Session{}, refuse(ErrNotFound, "the window of session %q has ended", id)
+	}
+	return s, nil
+}
+
+// SendText types text into the window of a session, as characters and not as key names, and presses Enter.
+// The text must be one line of plain characters. Only the window of that session is addressed.
+func (m *Manager) SendText(ctx context.Context, id, text string) error {
+	if text == "" || !utf8.ValidString(text) || strings.ContainsFunc(text, unicode.IsControl) {
+		return refuse(ErrInvalid, "the text is empty or not one line of plain characters")
+	}
+	// tmux reads a trailing ";" of the last argument as the end of a command; "\;" is a literal one.
+	if strings.HasSuffix(text, ";") {
+		text = strings.TrimSuffix(text, ";") + `\;`
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	s, err := m.live(ctx, id)
+	if err != nil {
+		return err
+	}
+	if _, err := m.tmux(ctx, "send-keys", "-t", s.window, "-l", "--", text); err != nil {
+		return fmt.Errorf("send the text: %w", err)
+	}
+	if _, err := m.tmux(ctx, "send-keys", "-t", s.window, "Enter"); err != nil {
+		return fmt.Errorf("send Enter: %w", err)
+	}
+	return nil
+}
+
+// SendKey presses one key, given by its tmux name such as 1 or Escape, in the window of a session.
+func (m *Manager) SendKey(ctx context.Context, id, key string) error {
+	if !keyName.MatchString(key) {
+		return refuse(ErrInvalid, "the key name is not valid")
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	s, err := m.live(ctx, id)
+	if err != nil {
+		return err
+	}
+	if _, err := m.tmux(ctx, "send-keys", "-t", s.window, key); err != nil {
+		return fmt.Errorf("send the key: %w", err)
+	}
+	return nil
 }

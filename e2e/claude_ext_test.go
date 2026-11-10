@@ -219,7 +219,41 @@ func TestClaudeHooksWithTheRealTool(t *testing.T) {
 		t.Logf("RESULT project hooks: the hooks of <project>/.claude/settings.json did NOT run next to the --settings hooks")
 	}
 
-	keys("Enter") // the first option, yes
+	// (b) The inbox holds a permission entry with the screen lines; the answer yes chooses the first option
+	// through the key mapped to it (the mapping is an assumption until this test proves it), the session works
+	// on, and the entry is picked.
+	var entry struct {
+		ID    string   `json:"id"`
+		Kind  string   `json:"kind"`
+		Lines []string `json:"lines"`
+	}
+	until("the permission entry in the inbox", 10*time.Second, func() bool {
+		var list []struct {
+			ID    string   `json:"id"`
+			Kind  string   `json:"kind"`
+			Lines []string `json:"lines"`
+		}
+		_ = json.Unmarshal([]byte(q("inbox", "list", "--output", "json")), &list)
+		if len(list) == 0 {
+			return false
+		}
+		entry = list[0]
+		return true
+	})
+	if entry.Kind != "permission" || len(entry.Lines) == 0 {
+		t.Errorf("inbox entry: kind %q with %d screen lines", entry.Kind, len(entry.Lines))
+	}
+	inboxStatus := func() string {
+		var list []struct{ ID, Status string }
+		_ = json.Unmarshal([]byte(q("inbox", "list", "--all", "--output", "json")), &list)
+		for _, e := range list {
+			if e.ID == entry.ID {
+				return e.Status
+			}
+		}
+		return ""
+	}
+	q("inbox", "answer", entry.ID, "--text", "yes")
 	sawRunning := false
 	until("the status idle after the turn", 180*time.Second, func() bool {
 		switch status() {
@@ -233,6 +267,7 @@ func TestClaudeHooksWithTheRealTool(t *testing.T) {
 	if !sawRunning {
 		t.Error("the status never showed running between the answer and the end of the turn")
 	}
+	until("the inbox entry to be picked", 10*time.Second, func() bool { return inboxStatus() == "picked" })
 	t.Log("RESULT AskUserQuestion: not probed; PreToolUse with tool AskUserQuestion is mapped to waiting without a check against the real tool")
 
 	// (d) qcrew changed none of the settings files.

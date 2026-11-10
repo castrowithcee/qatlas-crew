@@ -1,0 +1,4 @@
+ID            PROJECT       SESSION       KIND        AGE  TEXT
+eeeeeeeeeee2  abcdefghijk2  aaaaaaaaaaa2  permission  45s  Bash
+fffffffffff3  mnopqrstuvw7  bbbbbbbbbbb3  question    3h   Which database should the migration use, and should it keep…
+ggggggggggg4  abcdefghijk2  aaaaaaaaaaa2  idle        5d   the session waits for input

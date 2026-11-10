@@ -18,6 +18,7 @@ import (
 	"github.com/castrowithcee/qatlas-kit/localipc"
 
 	"github.com/castrowithcee/qatlas-crew/internal/control"
+	"github.com/castrowithcee/qatlas-crew/internal/inbox"
 	"github.com/castrowithcee/qatlas-crew/internal/project"
 	"github.com/castrowithcee/qatlas-crew/internal/session"
 )
@@ -82,6 +83,7 @@ type server struct {
 	sessions *session.Manager
 	mirror   mirror
 	status   *tracker
+	inbox    *inbox.Store
 	// lifecycle orders the starting of sessions against the removal of projects.
 	lifecycle sync.Mutex
 	cancel    context.CancelFunc
@@ -151,10 +153,11 @@ func Run(ctx context.Context, opts Options) error {
 		now = time.Now
 	}
 	logger := slog.New(slog.NewTextHandler(logw, nil))
+	clock := func() time.Time { return now().UTC().Truncate(time.Second) }
 	s := &server{
 		log: logger, started: time.Now().UTC(), version: opts.Version,
 		cancel: cancel, replaced: opts.programReplaced, every: opts.watchEvery, conns: map[net.Conn]struct{}{},
-		projects: projects, status: newTracker(func() time.Time { return now().UTC().Truncate(time.Second) }, logger),
+		projects: projects, status: newTracker(clock, logger), inbox: inbox.NewStore(clock),
 		sessions: session.New(tmuxServer, session.WithDataDir(control.DataDir(home)), session.WithExecutable(opts.Program)),
 	}
 	if s.replaced == nil {
@@ -173,6 +176,7 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	s.addProjectOps()
 	s.addSessionOps()
+	s.addInboxOps()
 
 	s.log.Info("service started", "pid", os.Getpid(), "version", s.version, "config", s.projects.Path())
 	if opts.Ready != nil {

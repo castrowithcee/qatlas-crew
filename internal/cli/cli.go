@@ -50,7 +50,7 @@ func newRoot() (*cobracli.Program, error) {
 		"configuration file of the qcrew service (default: QCREW_CONFIG, else config.yaml in QCREW_DIR or ~/.qatlas/qcrew)")
 	root.AddCommand(newVersionCommand(program), newSelfUpdateCommand(program), newManpageCommand(program),
 		newServiceCommand(program, access), newProjectCommand(program, access), newSessionCommand(program, access),
-		newHookCommand(access))
+		newInboxCommand(program, access), newHookCommand(access))
 	return program, nil
 }
 

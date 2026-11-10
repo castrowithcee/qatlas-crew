@@ -33,6 +33,8 @@ qcrew project add .  # register the current directory as a project
 qcrew project list   # list the projects (--output json for scripts)
 qcrew session start --project app --tool claude  # start Claude Code in the project app
 qcrew session attach <id>                         # show the session in this terminal
+qcrew inbox list                                  # what the sessions wait for
+qcrew inbox answer <id> --text yes                # answer an entry; the text is typed into the session
 ```
 
 ## Service
@@ -80,6 +82,23 @@ while the tool runs and `exited` after it ended.
 **Claude Code.** qcrew starts `claude` with a settings file of its own for each session, whose hooks report the
 status to the service. Your user settings and the settings of the project are never changed, and the
 status line that reports the context fill is added only if you have none of your own.
+
+## Inbox
+
+Every Claude Code session that waits creates an inbox entry for its project: `permission` (it asks to run
+something), `question` (it asks you something), `idle` (it has been idle for a minute) or `error` (its program
+ended without ending its session). A session has at most one open entry. `qcrew inbox list [--project P] [--all]`
+shows the entries, `qcrew inbox show <id>` one entry with the last screen lines of the session from when it
+arose, and `qcrew project list` the number of open entries per project (`inbox_open`).
+
+`qcrew inbox answer <id> --text T` types the text into the session's window and presses Enter. The answer is
+always one line: line breaks become spaces, other control characters are removed, and it is limited to 1000
+characters. For a `permission` entry the words `yes`, `always` and `no` press the key that chooses that option
+instead of typing the word. An entry goes from `open` to `answered` and `delivered`, and to `picked` once the
+session works on; `qcrew inbox close <id>` closes it without an answer. If the session has no live window the
+answer fails with `session-gone` and the entry stays open. Entries live in the memory of the service and are
+gone when it stops. Text and screen lines come from the tool and are shown with control characters masked.
+`qcrew help inbox-guide` has the details.
 
 ## Build from source
 
