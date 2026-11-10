@@ -111,6 +111,13 @@ func (s Server) AttachCommand(projectID, id string) []string {
 	return append(append([]string{Program}, s.args()...), "attach", "-t", SessionName(projectID)+":"+WindowName(id))
 }
 
+// EmbeddedAttachCommand is AttachCommand for a client that runs in the terminal emulator of qcrew. It forces
+// UTF-8 with -u: the emulator always decodes UTF-8, whatever locale the environment of qcrew names, and a
+// client that finds no UTF-8 locale would replace every non-ASCII character by an underscore.
+func (s Server) EmbeddedAttachCommand(projectID, id string) []string {
+	return append(append([]string{"tmux"}, s.args()...), "-u", "attach", "-t", SessionName(projectID)+":"+WindowName(id))
+}
+
 // Session is one agent session: a tmux window with its options.
 type Session struct {
 	ID      string

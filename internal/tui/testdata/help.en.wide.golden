@@ -32,7 +32,7 @@ qcrew                                                                           
                       |   latest release and changes nothing (updating needs --confirm)          |                      
                       | - qcrew help <topic>: show a help topic                                  |                      
                       |                                                                          |                      
-                      | lines 1-27 of 43                                                         |                      
+                      | lines 1-27 of 44                                                         |                      
                       |                                                                          |                      
                       | left/right topic  up/down scroll  pgup/pgdown page  esc/? close          |                      
                       #==========================================================================#                      

@@ -13,6 +13,7 @@ import (
 	"github.com/castrowithcee/qatlas-kit/uiprefs"
 
 	"github.com/castrowithcee/qatlas-crew/internal/control"
+	"github.com/castrowithcee/qatlas-crew/internal/session"
 	"github.com/castrowithcee/qatlas-crew/internal/tui"
 )
 
@@ -113,6 +114,11 @@ func openTUI(c *cobra.Command, access *serviceAccess) error {
 	} else {
 		opts.Prefs, opts.PrefsWarnings = uiprefs.Load(path, schema)
 		opts.SavePrefs = savePrefs(path, schema)
+	}
+	if server, err := session.ServerFromEnv(os.Getenv); err != nil {
+		opts.PrefsWarnings = append(opts.PrefsWarnings, "the session view is off: "+err.Error())
+	} else {
+		opts.Attach = server.EmbeddedAttachCommand
 	}
 	if err := runTUI(opts); err != nil {
 		return &cli.Failure{Code: output.CodeRuntime, Message: "the terminal interface failed: " + err.Error(),
