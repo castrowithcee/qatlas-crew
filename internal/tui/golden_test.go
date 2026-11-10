@@ -92,6 +92,9 @@ func TestGoldenScreens(t *testing.T) {
 		{"stop", goldenBackend, []string{"enter", "x"}},
 		{"settings", goldenBackend, []string{"4"}},
 		{"help", goldenBackend, []string{"?"}},
+		{"setup", goldenBackend, []string{"5"}},
+		{"setup-install", goldenBackend, []string{"5", "down", "i"}},
+		{"setup-result", goldenBackend, []string{"5", "down", "i", "y"}},
 		{"tmux-missing", func() *fakeBackend { return missing }, nil},
 	}
 	for _, s := range screens {

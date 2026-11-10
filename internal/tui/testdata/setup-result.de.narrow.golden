@@ -1,0 +1,30 @@
+qcrew                                [esc] Zurück  [?] Hilfe
+  1 Projekte 2 Postfach 3 Sessions 4 Einstellungen [5 Setup]
+------------------------------------------------------------
+> Programme, die qcrew braucht                              
+  PROGRAMM  STATUS       VERSION   INSTALLATION             
+  tmux      installiert  tmux 3.4                           
+> claude    installiert  v1.0                               
+  codex     fehlt                  siehe https://github.com~
+  Ergebnis                                                  
+  claude: Der Installationsbefehl endete mit Exit-Code 0.   
+  claude: jetzt gefunden, v1.0.                             
+  Nächster Schritt: keiner, claude ist einsatzbereit.       
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+[ L an ]  [ / ]  [ w an ]  [ t aus ]        Zeilen 1-3 von 3
+/ Suchen  r Neu laden  1-5 Bereich  q Beenden               
+                                      up/down Auswählen  2/3

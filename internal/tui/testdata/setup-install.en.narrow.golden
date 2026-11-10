@@ -1,0 +1,30 @@
+qcrew                                   [esc] back  [?] help
+   1 Projects   2 Inbox   3 Sessions   4 Settings  [5 Setup]
+------------------------------------------------------------
+> Programs qcrew needs                                      
+  PROGRAM  STATUS     VERSION   INSTALL                     
+  tmux     installed  tmux 3.4                              
+> claude   missing              [install]                   
+  codex    missing              see https://github.com/open~
+  Result                                                    
+No lines yet.                                               
+  #= Install program ====================================#  
+  | ! Install claude?                                    |  
+  |                                                      |  
+  | qcrew hands the terminal to 'qcrew setup install     |  
+  | claude'. It shows each command again and asks before |  
+  | it runs it; a command with sudo asks a second time.  |  
+  | Nothing runs without your yes there.                 |  
+  | $ curl -fsSL https://claude.ai/install.sh | bash     |  
+  |                                                      |  
+  | [ install ]  > cancel <                              |  
+  | y install  n/esc/enter cancel                        |  
+  #======================================================#  
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+                                                            
+[ L following ]  [ / search ]  [ w on ]  [ t off ]          
+                                                         2/3

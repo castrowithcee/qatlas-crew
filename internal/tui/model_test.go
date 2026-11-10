@@ -153,6 +153,10 @@ func TestTabLineArrowsStepTheAreas(t *testing.T) {
 		t.Fatalf("area %s focus %s", m.area, m.focus())
 	}
 	send(m, "left", "left")
+	if m.area != areaSetup {
+		t.Fatalf("area %s", m.area)
+	}
+	send(m, "left")
 	if m.area != areaSettings {
 		t.Fatalf("area %s", m.area)
 	}

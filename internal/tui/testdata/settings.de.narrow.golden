@@ -1,5 +1,5 @@
 qcrew                                [esc] Zurück  [?] Hilfe
-   1 Projekte   2 Postfach   3 Sessions  [4 Einstellungen]  
+  1 Projekte 2 Postfach 3 Sessions [4 Einstellungen] 5 Setup
 ------------------------------------------------------------
                #===========================================#
 > Theme        | terminal                                v |
@@ -26,5 +26,5 @@ qcrew                                [esc] Zurück  [?] Hilfe
                                                             
                                                             
 [ F2 Speichern ]  [ esc Verwerfen ]                         
-enter Auswählen  F2 Speichern  1-4 Bereich  esc Zurück      
+enter Auswählen  F2 Speichern  1-5 Bereich  esc Zurück      
                    tab Nächstes Feld  shift+tab Voriges Feld

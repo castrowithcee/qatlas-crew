@@ -1,9 +1,9 @@
 qcrew                                                                                                           [?] help
-  [1 Projects]  2 Inbox   3 Sessions   4 Settings                                                                       
+  [1 Projects]  2 Inbox   3 Sessions   4 Settings   5 Setup                                                             
 ------------------------------------------------------------------------------------------------------------------------
 > Projects                               |   Sessions of alpha                                                          
-  PROJECT  INBOX                         |   warning: tmux is not installed. Next step: run 'qcrew setup' to install    
-> alpha        3                         |   what qcrew needs.                                                          
+  PROJECT  INBOX                         |   warning: tmux is not installed. Next step: run 'qcrew setup', or open the  
+> alpha        3                         |   Setup area, to install what qcrew needs.                                   
   beta         0                         |                                                                              
                                          |                                                                              
                                          |                                                                              
@@ -36,5 +36,5 @@ qcrew                                                                           
                                          |                                                                              
                                          |                                                                              
                                          |                                                                              
-warning: tmux is not installed. Next step: run 'qcrew setup' to install what qcrew needs.                               
-enter sessions  / search  f full screen  r reload  1-4 area  q quit                                  up/down choose  1/2
+warning: tmux is not installed. Next step: run 'qcrew setup', or open the Setup area, to install what qcrew needs.      
+enter sessions  / search  f full screen  r reload  1-5 area  q quit                                  up/down choose  1/2

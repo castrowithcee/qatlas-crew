@@ -244,6 +244,7 @@ func TestEveryVisibleElementHasAClickTarget(t *testing.T) {
 		{"projects", nil}, {"sessions", []string{"enter"}}, {"full-projects", []string{"f"}},
 		{"full-sessions", []string{"enter", "f"}}, {"inbox", []string{"2"}}, {"settings", []string{"4"}},
 		{"stop", []string{"enter", "x"}}, {"help", []string{"?"}},
+		{"setup", []string{"5"}}, {"setup-install", []string{"5", "down", "i"}},
 	}
 	sizes := map[string][2]int{"narrow": {60, 30}, "wide": {120, 40}}
 	for _, s := range states {
@@ -307,6 +308,14 @@ func TestEveryVisibleElementHasAClickTarget(t *testing.T) {
 							for _, btn := range []kittui.TextID{kittui.TextKeySave, kittui.TextKeyDiscard} {
 								if !wantTarget(t, m, "settings button", m.text.Lookup(btn), 3, func(kittui.MouseResult) bool { return true }) {
 									t.Errorf("button %q is not drawn:\n%s", btn, screen)
+								}
+							}
+						}
+						if m.area == areaSetup {
+							rows(m.setup.list, "claude", "codex")
+							for _, id := range []kittui.TextID{textPaneSetup, textPaneSetupLog} {
+								if !wantTarget(t, m, "setup pane title", m.text.Lookup(id), 3, func(r kittui.MouseResult) bool { return r.Area == areaSetup }) {
+									t.Errorf("title %q is not drawn:\n%s", id, screen)
 								}
 							}
 						}

@@ -1,5 +1,5 @@
 qcrew                                                                                               [esc] back  [?] help
-   1 Projects  [2 Inbox]  3 Sessions   4 Settings                                                                       
+   1 Projects  [2 Inbox]  3 Sessions   4 Settings   5 Setup                                                             
 ------------------------------------------------------------------------------------------------------------------------
   Projects                               | > Inbox of alpha                                                             
   PROJECT  INBOX                         |   The inbox of this project follows in a later release. Open entries: 3.     
@@ -37,4 +37,4 @@ qcrew                                                                           
                                          |                                                                              
                                          |                                                                              
                                          |                                                                              
-f full screen  r reload  1-4 area  q quit                                                                               
+f full screen  r reload  1-5 area  q quit                                                                               

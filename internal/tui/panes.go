@@ -75,6 +75,9 @@ func (m *Model) workspace(width, height int) string {
 		m.parts = append(m.parts, mousePart{rect: kittui.Rect{Width: width, Height: height}, form: m.set.form, targets: targets})
 		return view
 	}
+	if m.area == areaSetup {
+		return m.setupView(width, height)
+	}
 	if !m.loaded {
 		text := ""
 		if m.failure == "" {

@@ -23,6 +23,10 @@ import (
 	"github.com/castrowithcee/qatlas-crew/internal/project"
 )
 
+// Program is the name of the tmux program. It is the one place that spells it, so that other packages, such
+// as setup, can name tmux without a literal that the architecture test forbids outside this package.
+const Program = "tmux"
+
 // ServerName is the name of the tmux server of qcrew. Its socket lies beside the default server's, which
 // qcrew never addresses.
 const ServerName = "qcrew"
@@ -102,7 +106,7 @@ func WindowName(id string) string { return "s-" + id }
 
 // AttachCommand is the command line that attaches a terminal to the window of a session.
 func (s Server) AttachCommand(projectID, id string) []string {
-	return append(append([]string{"tmux"}, s.args()...), "attach", "-t", SessionName(projectID)+":"+WindowName(id))
+	return append(append([]string{Program}, s.args()...), "attach", "-t", SessionName(projectID)+":"+WindowName(id))
 }
 
 // Session is one agent session: a tmux window with its options.
@@ -205,7 +209,7 @@ var errNoServer = errors.New("no tmux server")
 
 // tmux runs one tmux command, or several separated by ";", against the manager's server and returns stdout.
 func (m *Manager) tmux(ctx context.Context, args ...string) (string, error) {
-	bin, err := m.lookPath("tmux")
+	bin, err := m.lookPath(Program)
 	if err != nil {
 		return "", refuse(ErrNoTmux, "tmux is not installed or not in PATH")
 	}
@@ -323,7 +327,7 @@ func (m *Manager) Start(ctx context.Context, req StartRequest) (Session, error) 
 	if err := ValidTitle(title); err != nil {
 		return Session{}, err
 	}
-	if _, err := m.lookPath("tmux"); err != nil {
+	if _, err := m.lookPath(Program); err != nil {
 		return Session{}, refuse(ErrNoTmux, "tmux is not installed or not in PATH")
 	}
 	if _, err := m.lookPath(command[0]); err != nil {

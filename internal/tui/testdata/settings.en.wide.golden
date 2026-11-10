@@ -1,5 +1,5 @@
 qcrew                                                                                               [esc] back  [?] help
-   1 Projects   2 Inbox   3 Sessions  [4 Settings]                                                                      
+   1 Projects   2 Inbox   3 Sessions  [4 Settings]  5 Setup                                                             
 ------------------------------------------------------------------------------------------------------------------------
              #=========================================================================================================#
 > theme      | terminal                                                                                              v |
@@ -37,4 +37,4 @@ qcrew                                                                           
                                                                                                                         
                                                                                                                         
 [ F2 save ]  [ esc discard ]                                                                                            
-enter choose  F2 save  1-4 area  esc back                                       tab next field  shift+tab previous field
+enter choose  F2 save  1-5 area  esc back                                       tab next field  shift+tab previous field
