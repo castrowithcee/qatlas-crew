@@ -237,7 +237,8 @@ func (s *server) addSessionOps() {
 func (s *server) wire(x session.Session) control.Session {
 	status, since, context := s.status.view(x)
 	return control.Session{ID: x.ID, Project: x.Project, Tool: x.Tool, Title: x.Title, Status: status, Since: since,
-		ContextPercent: context, StartedAt: x.Started, Signals: s.status.signals(x)}
+		ContextPercent: context, StartedAt: x.Started, Signals: s.status.signals(x),
+		Integration: s.sessionIntegration(x.Tool)}
 }
 
 // bindAgentSession records the id a Codex session names itself with in the window of the session, where a

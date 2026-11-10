@@ -26,10 +26,12 @@ const (
 	actStop kittui.ActionID = "stop"
 	// actInstall asks to install the program under the cursor of the Setup area.
 	actInstall kittui.ActionID = "install"
-	actToggle  kittui.ActionID = "toggle"
-	actNext    kittui.ActionID = "next"
-	actPrev    kittui.ActionID = "prev"
-	actSave    kittui.ActionID = "save"
+	// actHooks asks to set up or remove the Codex hooks from the Setup area.
+	actHooks  kittui.ActionID = "hooks"
+	actToggle kittui.ActionID = "toggle"
+	actNext   kittui.ActionID = "next"
+	actPrev   kittui.ActionID = "prev"
+	actSave   kittui.ActionID = "save"
 	// The answers of a question.
 	actYes kittui.ActionID = "yes"
 	actNo  kittui.ActionID = "no"
@@ -62,6 +64,7 @@ func keyTable() []kittui.Action {
 		act(actFull, kittui.LevelLetter, textKeyFull, "f"),
 		act(actStop, kittui.LevelLetter, textKeyStop, "x"),
 		act(actInstall, kittui.LevelLetter, textKeyInstall, "i"),
+		act(actHooks, kittui.LevelLetter, textKeyHooks, "h"),
 		act(actToggle, kittui.LevelMove, kittui.TextKeyToggle, "space"),
 		act(actNext, kittui.LevelMove, kittui.TextKeyNext, "tab"),
 		act(actPrev, kittui.LevelMove, kittui.TextKeyPrevious, "shift+tab"),

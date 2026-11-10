@@ -2,12 +2,14 @@ package tui
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/castrowithcee/qatlas-kit/cli"
 	"github.com/castrowithcee/qatlas-kit/i18n"
 	kittui "github.com/castrowithcee/qatlas-kit/tui"
 
+	"github.com/castrowithcee/qatlas-crew/internal/control"
 	"github.com/castrowithcee/qatlas-crew/internal/session"
 )
 
@@ -196,4 +198,82 @@ func TestSetupHelpAndAreaKeys(t *testing.T) {
 	if m.area != areaProjects {
 		t.Fatalf("esc: area %s", m.area)
 	}
+}
+
+func TestSetupHooksPreviewThenHandOver(t *testing.T) {
+	b := demoBackend()
+	m := newTestModel(t, i18n.English, b, wideWidth, wideHeight)
+	send(m, "5")
+	contains(t, m, "INTEGRATION", "not needed", "missing [configure]")
+	send(m, "down", "down", "h")
+	if m.modal == nil || len(b.hooksAsked) != 1 || b.hooksAsked[0] {
+		t.Fatalf("modal %v, asks %v", m.modal, b.hooksAsked)
+	}
+	contains(t, m, "Set up the Codex hooks of qcrew?", "/home/u/.codex/hooks.json", "/home/u/.codex/config.toml",
+		"+{", "... 2 more changed lines", "must be approved", "qcrew setup codex-hooks")
+	send(m, "n")
+	if m.modal != nil || len(execsOf[m].calls) != 0 {
+		t.Fatalf("cancel: modal %v, calls %v", m.modal, execsOf[m].calls)
+	}
+	send(m, "h", "y")
+	calls := execsOf[m].calls
+	if len(calls) != 1 || strings.Join(calls[0], " ") != "/fake/qcrew setup codex-hooks" {
+		t.Fatalf("calls = %v", calls)
+	}
+	contains(t, m, "Codex hooks: the command ended with exit code 0.", "Codex hooks now: configured.",
+		"configured [remove]")
+	if m.setup.hooking || m.setup.pendingHooks != nil || m.setup.previewing {
+		t.Fatalf("state left over: %+v", m.setup)
+	}
+
+	// Configured: the same key removes, and a failed command names the next step.
+	execsOf[m].err = exitCode(2)
+	send(m, "h")
+	if len(b.hooksAsked) != 3 || !b.hooksAsked[2] {
+		t.Fatalf("asks %v", b.hooksAsked)
+	}
+	contains(t, m, "Remove the Codex hooks of qcrew?", "only the entries")
+	send(m, "y")
+	if calls := execsOf[m].calls; strings.Join(calls[len(calls)-1], " ") != "/fake/qcrew setup codex-hooks --remove" {
+		t.Fatalf("calls = %v", calls)
+	}
+	contains(t, m, "exit code 2.", "Codex hooks now: configured.", "press h to try again")
+}
+
+func TestSetupHooksRefusals(t *testing.T) {
+	b := demoBackend()
+	m := newTestModel(t, i18n.English, b, wideWidth, wideHeight)
+	send(m, "5", "h")
+	if m.modal != nil || len(b.hooksAsked) != 0 {
+		t.Fatal("tmux has no hooks")
+	}
+	contains(t, m, "Only Codex has hooks to set up here.")
+
+	b.setup[2].Integration, b.setup[2].IntegrationProblems = control.IntegrationUnknown, []string{"CODEX_HOME is not a folder"}
+	send(m, "r", "down", "down", "h")
+	if m.modal != nil || len(b.hooksAsked) != 0 {
+		t.Fatal("asked although the state is unknown")
+	}
+	contains(t, m, "unknown", "CODEX_HOME is not a folder")
+
+	b.setup[2].Integration = control.IntegrationStale
+	b.hooks = control.SetupIntegrationResult{Empty: true}
+	send(m, "r", "h")
+	if m.modal != nil || len(b.hooksAsked) != 1 {
+		t.Fatalf("modal %v, asks %v", m.modal, b.hooksAsked)
+	}
+	contains(t, m, "stale [configure]", "The Codex hooks need no change.")
+
+	b.hooksErr = errors.New("boom")
+	send(m, "h")
+	if m.modal != nil || m.setup.previewing {
+		t.Fatalf("modal %v after a failed preview", m.modal)
+	}
+}
+
+func TestSessionsShowMissingHooks(t *testing.T) {
+	b := demoBackend()
+	m := newTestModel(t, i18n.German, b, wideWidth, wideHeight)
+	send(m, "enter")
+	contains(t, m, ", ohne Hooks")
 }

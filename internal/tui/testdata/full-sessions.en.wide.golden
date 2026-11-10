@@ -2,10 +2,10 @@ qcrew                                                                           
    1 Projects   2 Inbox  [3 Sessions]  4 Settings   5 Setup                                                             
 ------------------------------------------------------------------------------------------------------------------------
 > Sessions of alpha                                                                                                     
-  TOOL    TITLE            STATUS   SINCE                                                                               
-> claude  refactor parser  running     1m                                                                               
-  codex   write docs       waiting     3h                                                                               
-  claude  fix flaky test   error       1d                                                                               
+  TOOL    TITLE            STATUS             SINCE                                                                     
+> claude  refactor parser  running               1m                                                                     
+  codex   write docs       waiting, no hooks     3h                                                                     
+  claude  fix flaky test   error                 1d                                                                     
                                                                                                                         
                                                                                                                         
                                                                                                                         

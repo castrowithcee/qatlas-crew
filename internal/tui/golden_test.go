@@ -30,7 +30,8 @@ func goldenBackend() *fakeBackend {
 	b := demoBackend()
 	b.sessions = []control.Session{
 		{ID: "s1", Project: "p-alpha", Tool: "claude", Title: "refactor parser", Status: "running", Since: epoch.Add(-90 * time.Second)},
-		{ID: "s2", Project: "p-alpha", Tool: "codex", Title: "write docs", Status: "waiting", Since: epoch.Add(-3 * time.Hour)},
+		{ID: "s2", Project: "p-alpha", Tool: "codex", Title: "write docs", Status: "waiting", Since: epoch.Add(-3 * time.Hour),
+			Integration: control.IntegrationMissing},
 		{ID: "s3", Project: "p-alpha", Tool: "claude", Title: "fix flaky test", Status: "error", Since: epoch.Add(-26 * time.Hour)},
 		{ID: "s4", Project: "p-beta", Tool: "shell", Title: "build watcher", Status: "idle", Since: epoch.Add(-5 * time.Second)},
 		{ID: "s5", Project: "p-beta", Tool: "codex", Title: "old experiment", Status: "exited", Since: epoch.Add(-50 * time.Hour)},
@@ -95,6 +96,8 @@ func TestGoldenScreens(t *testing.T) {
 		{"setup", goldenBackend, []string{"5"}},
 		{"setup-install", goldenBackend, []string{"5", "down", "i"}},
 		{"setup-result", goldenBackend, []string{"5", "down", "i", "y"}},
+		{"setup-hooks", goldenBackend, []string{"5", "down", "down", "h"}},
+		{"setup-hooks-result", goldenBackend, []string{"5", "down", "down", "h", "y"}},
 		{"tmux-missing", func() *fakeBackend { return missing }, nil},
 	}
 	for _, s := range screens {

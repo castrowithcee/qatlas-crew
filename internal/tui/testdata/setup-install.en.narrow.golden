@@ -2,10 +2,10 @@ qcrew                                   [esc] back  [?] help
    1 Projects   2 Inbox   3 Sessions   4 Settings  [5 Setup]
 ------------------------------------------------------------
 > Programs qcrew needs                                      
-  PROGRAM  STATUS     VERSION   INSTALL                     
+  PROGRAM  STATUS     VERSION   INSTALL       INTEGRATION   
   tmux     installed  tmux 3.4                              
-> claude   missing              [install]                   
-  codex    missing              see https://github.com/open~
+> claude   missing              [install]     not needed    
+  codex    missing              see https:/~  missing [conf~
   Result                                                    
 No lines yet.                                               
   #= Install program ====================================#  

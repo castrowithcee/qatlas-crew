@@ -136,6 +136,14 @@ func (c *Client) SetupCheck(ctx context.Context) ([]control.SetupDependency, err
 	return res.Dependencies, nil
 }
 
+// SetupIntegration asks the service for the change that sets up the Codex hooks or, with remove, takes them
+// out. It writes nothing.
+func (c *Client) SetupIntegration(ctx context.Context, remove bool) (control.SetupIntegrationResult, error) {
+	var res control.SetupIntegrationResult
+	err := c.callInto(ctx, control.OpSetupIntegration, control.SetupIntegrationArgs{Remove: remove}, &res)
+	return res, err
+}
+
 // Projects returns the registered projects.
 func (c *Client) Projects(ctx context.Context) ([]control.Project, error) {
 	var res control.ProjectListResult

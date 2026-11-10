@@ -65,7 +65,10 @@ func newTUICommand(access *serviceAccess) *cobra.Command {
 			"under the cursor with tool, title, status and the time since the status last changed. Areas are switched\n" +
 			"with 1 to 5, or with tab and the left and right keys: Projects, Inbox (it follows in a later release),\n" +
 			"Sessions, Settings and Setup. Setup lists tmux, Claude Code and Codex; i installs the missing program under\n" +
-			"the cursor after asking, by handing the terminal to 'qcrew setup install'. f shows the pane of an area\n" +
+			"the cursor after asking, by handing the terminal to 'qcrew setup install'. Its integration column shows\n" +
+			"whether the Codex hooks are configured, missing or stale; h shows the change to set them up, or to remove\n" +
+			"them, and after a yes hands the terminal to 'qcrew setup codex-hooks', which asks again before it writes.\n" +
+			"A Codex session without them shows 'no hooks' beside its status. f shows the pane of an area\n" +
 			"alone and back, x stops the session under the cursor after asking, r reads the service again, ? opens\n" +
 			"the help and q quits. The lists refresh every two seconds.\n\n" +
 			"The mouse works too: click a tab, a key in the header or footer, or a row, and turn the wheel to scroll.\n" +

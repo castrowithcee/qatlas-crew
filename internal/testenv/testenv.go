@@ -31,10 +31,10 @@ type Env struct {
 }
 
 // Setup creates the directories under t.TempDir and points HOME, XDG_*, TMPDIR and the locale, color, terminal
-// and time zone variables at them for the duration of the test, and clears QCREW_CONFIG and QCREW_DIR. It
-// points QCREW_TMUX_SOCKET at a socket in a directory that does not exist, so that qcrew reaches no tmux
-// server, least of all the user's, until a test names its own. It uses t.Setenv, so it cannot be combined
-// with t.Parallel.
+// and time zone variables at them for the duration of the test, and clears QCREW_CONFIG, QCREW_DIR and
+// CODEX_HOME, so that the home of Codex is the one below the test home. It points QCREW_TMUX_SOCKET at a
+// socket in a directory that does not exist, so that qcrew reaches no tmux server, least of all the user's,
+// until a test names its own. It uses t.Setenv, so it cannot be combined with t.Parallel.
 func Setup(t testing.TB) *Env {
 	t.Helper()
 	root := t.TempDir()
@@ -62,7 +62,7 @@ func Setup(t testing.TB) *Env {
 	}
 	// The variables that point qcrew at another configuration must not reach a test from the real
 	// environment; empty counts as unset.
-	for _, name := range []string{"QCREW_CONFIG", "QCREW_DIR"} {
+	for _, name := range []string{"QCREW_CONFIG", "QCREW_DIR", "CODEX_HOME"} {
 		t.Setenv(name, "")
 	}
 	return e

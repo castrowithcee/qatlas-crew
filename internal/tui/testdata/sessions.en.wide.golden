@@ -2,10 +2,10 @@ qcrew                                                                           
    1 Projects   2 Inbox  [3 Sessions]  4 Settings   5 Setup                                                             
 ------------------------------------------------------------------------------------------------------------------------
   Projects                               | > Sessions of alpha                                                          
-  PROJECT  INBOX                         |   TOOL    TITLE            STATUS   SINCE                                    
-> alpha        3                         |   claude  refactor parser  running     1m                                    
-  beta         0                         | > codex   write docs       waiting     3h                                    
-                                         |   claude  fix flaky test   error       1d                                    
+  PROJECT  INBOX                         |   TOOL    TITLE            STATUS             SINCE                          
+> alpha        3                         |   claude  refactor parser  running               1m                          
+  beta         0                         | > codex   write docs       waiting, no hooks     3h                          
+                                         |   claude  fix flaky test   error                 1d                          
                                          |                                                                              
                                          |                                                                              
                                          |                                                                              

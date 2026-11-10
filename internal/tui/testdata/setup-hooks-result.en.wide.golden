@@ -1,0 +1,40 @@
+qcrew                                                                                               [esc] back  [?] help
+   1 Projects   2 Inbox   3 Sessions   4 Settings  [5 Setup]                                                            
+------------------------------------------------------------------------------------------------------------------------
+> Programs qcrew needs                                                                                                  
+  PROGRAM  STATUS     VERSION   INSTALL                              INTEGRATION                                        
+  tmux     installed  tmux 3.4                                                                                          
+  claude   missing              [install]                            not needed                                         
+> codex    missing              see https://github.com/openai/codex  configured [remove]                                
+  Result                                                                                                                
+  Codex hooks: the command ended with exit code 0.                                                                      
+  Codex hooks now: configured.                                                                                          
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+[ L following ]  [ / search ]  [ w wrap lines on ]  [ t timestamps off ]                                  lines 1-2 of 2
+/ search  h remove hooks  r reload  1-5 area  q quit                                                 up/down choose  3/3

@@ -30,8 +30,9 @@ qcrew version        # print the version
 qcrew service start  # start the background service
 qcrew service status # show whether it runs (--output json for scripts)
 qcrew service stop   # stop it
-qcrew setup          # check tmux, Claude Code and Codex and offer to install what is missing
+qcrew setup          # check tmux, Claude Code and Codex, offer to install what is missing and set up the Codex hooks
 qcrew setup --check  # only look (--output json for scripts)
+qcrew setup codex-hooks [--remove]  # set up, renew or remove the Codex hooks of qcrew
 qcrew project add .  # register the current directory as a project
 qcrew project list   # list the projects (--output json for scripts)
 qcrew session start --project app --tool claude  # start Claude Code in the project app
@@ -58,6 +59,7 @@ Sessions, Settings and Setup, which lists tmux, Claude Code and Codex (see [Setu
 | `f` | show the pane of the area alone and back |
 | `x` | stop the session under the cursor, after asking |
 | `i` (or `enter`) | in Setup: install the program under the cursor, after asking |
+| `h` (or `enter`) | in Setup: set up or remove the Codex hooks, after showing the change and asking |
 | `/` | filter the list |
 | `r`, `?`, `q` | read again, help, quit |
 
@@ -92,6 +94,27 @@ opens a question with the command; after your yes the interface hands the termin
 `qcrew setup install <name>`, where the same questions follow and the output appears live. When you return,
 qcrew checks again and the result pane shows the exit code, whether the program is found now and the next step.
 A program installed into a folder that is not in `PATH` stays missing until you add the folder.
+
+### Codex hooks
+
+Codex reports the status of a session through hooks, which Codex runs only once they are approved. The
+`integration` column of `qcrew setup` shows whether the hooks of qcrew are `configured`, `missing` or `stale`
+(after qcrew moved, or a change by hand); what is stale is named on standard error. Claude Code needs none
+(`not-needed`): its sessions bring their own.
+
+`qcrew setup codex-hooks` sets them up in the Codex home, `CODEX_HOME` or else `~/.codex`: one entry per event
+qcrew reads in `hooks.json`, calling `qcrew hook codex`, and the approval of each entry in `config.toml`, so that
+Codex runs them without `--dangerously-bypass-hook-trust`, which qcrew never uses. It first shows the change to
+both files as a diff and writes only after your yes; without a terminal it writes nothing and exits with code 2.
+Before writing it backs up both files to `backups/codex` in the qcrew data folder and keeps the newest ten; each
+file is then replaced in one step with its permissions kept. Only the entries of qcrew change: every other hook,
+table and comment stays byte for byte, new entries go after those of others so that their approvals stay valid,
+and qcrew never approves a hook of anyone else. A removal that moves hooks of others up says so, since Codex then
+asks for their approval again. `qcrew setup codex-hooks --remove` takes the entries and their approvals out the
+same way; a file that holds nothing else afterwards is deleted. `qcrew setup` offers the same change when Codex
+is installed and its hooks are missing or stale, and the Setup area offers it with `h`, handing the terminal to
+`qcrew setup codex-hooks` after your yes. Until the hooks are in place, a Codex session shows
+`integration` in `qcrew session list` (and `no hooks` in the interface) and reports through the fallback.
 
 ## Service
 
@@ -139,9 +162,9 @@ runs and `exited` after it ended.
 status to the service. Your user settings and the settings of the project are never changed, and the
 status line that reports the context fill is added only if you have none of your own.
 
-**Codex.** qcrew starts `codex --no-daemon` with flags for the session only and writes nothing to
-`~/.codex`. Its status comes from Codex hooks, which call `qcrew hook codex`; they report the session through
-the variable `QCREW_SESSION` that qcrew gives the tool. qcrew does not set up the hooks yet: until the first
+**Codex.** qcrew starts `codex --no-daemon` with flags for the session only. Its status comes from Codex hooks,
+which call `qcrew hook codex`; they report the session through the variable `QCREW_SESSION` that qcrew gives the
+tool. The hooks are set up once with `qcrew setup codex-hooks` (see [Codex hooks](#codex-hooks)). Until the first
 hook event of a session (`signals` is then `hooks`, shown by `session list` for Codex sessions), a coarser
 fallback reports through the session's flags and the screen (`signals` is `fallback`). A session is `running`
 while it starts and `idle` once its screen shows that it waits for input; the notify program marks the end of a

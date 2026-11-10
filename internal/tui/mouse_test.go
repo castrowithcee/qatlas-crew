@@ -245,6 +245,7 @@ func TestEveryVisibleElementHasAClickTarget(t *testing.T) {
 		{"full-sessions", []string{"enter", "f"}}, {"inbox", []string{"2"}}, {"settings", []string{"4"}},
 		{"stop", []string{"enter", "x"}}, {"help", []string{"?"}},
 		{"setup", []string{"5"}}, {"setup-install", []string{"5", "down", "i"}},
+		{"setup-hooks", []string{"5", "down", "down", "h"}},
 	}
 	sizes := map[string][2]int{"narrow": {60, 30}, "wide": {120, 40}}
 	for _, s := range states {
@@ -313,6 +314,11 @@ func TestEveryVisibleElementHasAClickTarget(t *testing.T) {
 						}
 						if m.area == areaSetup {
 							rows(m.setup.list, "claude", "codex")
+							// The button of the Codex hooks is part of its row, whose second click opens it; a narrow
+							// screen cuts the cell after the state and the start of the button.
+							if !wantTarget(t, m, "hooks button", m.text.Lookup(textIntegMissing)+" [", 0, item) {
+								t.Errorf("the hooks button has no target:\n%s", screen)
+							}
 							for _, id := range []kittui.TextID{textPaneSetup, textPaneSetupLog} {
 								if !wantTarget(t, m, "setup pane title", m.text.Lookup(id), 3, func(r kittui.MouseResult) bool { return r.Area == areaSetup }) {
 									t.Errorf("title %q is not drawn:\n%s", id, screen)

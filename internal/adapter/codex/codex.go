@@ -1,6 +1,7 @@
 // Package codex is the adapter of Codex. It starts the tool with session flags only: its hooks, once the user
 // has set them up, and its notify program and bell notifications, which stand in for them, report the status
-// of the session to qcrew. It never writes to the tool's home directory.
+// of the session to qcrew. It never writes to the tool's home directory; package integration sets up the hooks
+// there when the user asks for it.
 package codex
 
 import (
@@ -18,6 +19,13 @@ import (
 // SessionEnv names the variable that tells a hook which qcrew session its tool belongs to. Only the tool's
 // process gets it, so a hook finds its session without the hook definition naming one.
 const SessionEnv = "QCREW_SESSION"
+
+// HookEvents returns the events of Codex whose hooks report the status of a session: the ones the status
+// mapping of the service reads. Any of them also ends the fallback.
+func HookEvents() []string {
+	return []string{"PreModelRequest", "PostModelRequest", "PreToolUse", "PermissionRequest", "PostToolUse",
+		"SessionEnd", "UserPromptSubmit", "Stop", "Interrupt"}
+}
 
 // Adapter starts Codex.
 type Adapter struct{}

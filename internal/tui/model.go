@@ -284,6 +284,10 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		return m.applySetup(msg)
 	case installDoneMsg:
 		return m.installDone(msg)
+	case hooksPreviewMsg:
+		return m.applyHooksPreview(msg)
+	case hooksDoneMsg:
+		return m.hooksDone(msg)
 	case stopMsg:
 		return m.applyStop(msg)
 	case tea.ForegroundColorMsg:
@@ -411,6 +415,10 @@ func (m *Model) fillSessions(newProject bool) {
 		sid := kittui.ItemID(s.ID)
 		m.sessByID[sid] = s
 		status, tone := m.statusText(s.Status)
+		if s.Integration != "" {
+			// The session reports through the fallback while the Codex hooks are not in place.
+			status = m.text.Lookup(textSessionNoHooks, status)
+		}
 		m.statusTones[status] = tone
 		items = append(items, kittui.ListItem{ID: sid,
 			Cells: []string{s.Tool, s.Title, status, since(now, s.Since)}})
@@ -535,6 +543,8 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 			return tea.Batch(m.reload(), m.setupReload())
 		case actInstall:
 			return m.beginInstall()
+		case actHooks:
+			return m.beginHooks()
 		case kittui.ActionLogFollow, kittui.ActionLogNextMatch, kittui.ActionLogPrevMatch, kittui.ActionLogWrap,
 			kittui.ActionLogTimestamps:
 			if m.area == areaSetup {
@@ -570,7 +580,7 @@ func (m *Model) press(msg tea.KeyPressMsg) tea.Cmd {
 			case areaProjects:
 				return m.openProject()
 			case areaSetup:
-				return m.beginInstall()
+				return m.openSetupRow()
 			}
 		}
 	}
