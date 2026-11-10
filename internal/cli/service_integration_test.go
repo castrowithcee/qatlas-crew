@@ -52,6 +52,8 @@ func TestHelperProcess(t *testing.T) {
 		os.Exit(Run(flag.Args(), os.Stdout, os.Stderr))
 	case "claude":
 		os.Exit(fakeClaude(flag.Args(), os.Stdin, os.Stdout))
+	case "codex":
+		os.Exit(fakeCodex(flag.Args(), os.Stdin, os.Stdout))
 	case "start":
 		os.Exit(Run([]string{"service", "start", "--output", "json"}, os.Stdout, os.Stderr))
 	case "dial":

@@ -10,11 +10,18 @@ import (
 
 	"github.com/castrowithcee/qatlas-crew/internal/adapter"
 	"github.com/castrowithcee/qatlas-crew/internal/control"
+	"github.com/castrowithcee/qatlas-crew/internal/inbox"
 	"github.com/castrowithcee/qatlas-crew/internal/session"
 )
 
-// refreshEvery is how often the service mirrors the sessions from tmux.
-const refreshEvery = 2 * time.Second
+// refreshEvery is how often the service mirrors the sessions from tmux, and fastEvery how often it does while
+// a Codex session depends on the fallback, whose only sign of a prompt is the bell that tmux records. The
+// person sees a waiting session within fastEvery of the bell plus the time the inbox needs, well inside two
+// seconds.
+const (
+	refreshEvery = 2 * time.Second
+	fastEvery    = 500 * time.Millisecond
+)
 
 // mirror is the service's copy of the sessions in tmux, which stays the truth about them.
 type mirror struct {
@@ -41,19 +48,43 @@ func (s *server) refreshSessions(ctx context.Context) ([]session.Session, error)
 	s.mirror.mu.Unlock()
 	// The inbox looks at tmux for the screen lines, which must not happen under the mirror's lock.
 	s.noteChanges(ctx, changes)
+	s.takeBells(ctx, list)
 	return list, nil
 }
 
+// takeBells lets the sessions whose window rang move to waiting and the inbox follow, and takes the ring in so
+// that the next one counts anew. A ring after hooks report is taken in and changes nothing.
+func (s *server) takeBells(ctx context.Context, list []session.Session) {
+	for _, x := range list {
+		if !x.Bell || x.Tool != adapter.Codex {
+			continue
+		}
+		ch := s.status.bell(x)
+		if err := s.sessions.ClearBell(ctx, x.ID); err != nil {
+			s.log.Warn("cannot clear the bell of a session", "id", x.ID, "err", err)
+		}
+		if ch.changed() && ch.To == statusWaiting && !ch.Dead {
+			// The bell says a prompt waits, not which kind; the text is the last line of the screen.
+			s.openEntry(ctx, x.Project, x.ID, inbox.KindPermission, "")
+		}
+	}
+}
+
 func (s *server) refreshLoop(ctx context.Context) {
-	ticker := time.NewTicker(refreshEvery)
+	ticker := time.NewTicker(fastEvery)
 	defer ticker.Stop()
+	last := time.Now()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			_, _ = s.refreshSessions(ctx)
+			if time.Since(last) >= refreshEvery || s.status.fallbackWatch() {
+				last = time.Now()
+				_, _ = s.refreshSessions(ctx)
+			}
 			s.sweepIdle(ctx)
+			s.sweepFailures(ctx)
 		}
 	}
 }
@@ -86,11 +117,12 @@ func (s *server) addSessionOps() {
 		if !ok {
 			return nil, &control.Error{Code: control.CodeNotFound, Message: "no session has the id " + a.Session}
 		}
-		if !adapter.HasHooks(x.Tool) {
+		if !adapter.HasHooks(x.Tool) || (a.Source == control.EventSourceNotify && x.Tool != adapter.Codex) {
 			return nil, &control.Error{Code: control.CodeInvalidArgument, Message: "the tool of the session reports no events"}
 		}
 		ch := s.status.apply(x, a)
 		s.noteEvent(ctx, x, a, ch)
+		s.bindAgentSession(ctx, x, a.AgentSession)
 		return struct{}{}, nil
 	}
 	s.ops[control.OpSessionStart] = func(ctx context.Context, args json.RawMessage) (any, error) {
@@ -181,7 +213,19 @@ func (s *server) addSessionOps() {
 func (s *server) wire(x session.Session) control.Session {
 	status, since, context := s.status.view(x)
 	return control.Session{ID: x.ID, Project: x.Project, Tool: x.Tool, Title: x.Title, Status: status, Since: since,
-		ContextPercent: context, StartedAt: x.Started}
+		ContextPercent: context, StartedAt: x.Started, Signals: s.status.signals(x)}
+}
+
+// bindAgentSession records the id a Codex session names itself with in the window of the session, where a
+// later resume finds it. An id that is already recorded is left alone.
+func (s *server) bindAgentSession(ctx context.Context, x session.Session, id string) {
+	if id == "" || x.Tool != adapter.Codex || !s.status.agentChanged(x, id) {
+		return
+	}
+	if err := s.sessions.SetAgentSession(ctx, x.ID, id); err != nil {
+		s.status.forgetAgent(x)
+		s.log.Warn("cannot record the tool session id", "id", x.ID, "err", err)
+	}
 }
 
 // findSession returns the session with the given id: from the mirror, or, if it is not there yet, from a

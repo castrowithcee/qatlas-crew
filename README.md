@@ -76,16 +76,27 @@ another tmux server, for example in tests. `qcrew help session-guide` has the de
 
 The status is one of `running` (the tool works), `waiting` (it asks for a permission or an answer), `idle`
 (it finished its turn and waits for input), `error` (its program ended without saying so, or a hook sent
-something unreadable) or `exited`. Only Claude Code reports all five; `codex` and `shell` show `running`
-while the tool runs and `exited` after it ended.
+something unreadable) or `exited`. Claude Code and Codex report all five; `shell` shows `running` while it
+runs and `exited` after it ended.
 
 **Claude Code.** qcrew starts `claude` with a settings file of its own for each session, whose hooks report the
 status to the service. Your user settings and the settings of the project are never changed, and the
 status line that reports the context fill is added only if you have none of your own.
 
+**Codex.** qcrew starts `codex --no-daemon` with flags for the session only and writes nothing to
+`~/.codex`. Its status comes from Codex hooks, which call `qcrew hook codex`; they report the session through
+the variable `QCREW_SESSION` that qcrew gives the tool. qcrew does not set up the hooks yet: until the first hook event of
+a session (`signals` is then `hooks`, shown by `session list` for Codex sessions), a coarser fallback reports
+only through the session's flags (`signals` is `fallback`): the notify program marks the end of a turn as `idle`,
+and the terminal bell of a prompt marks `waiting` with a `permission` entry whatever the prompt asks. The
+fallback cannot tell a question from a permission, cannot see failures, and ends `waiting` only when you answer
+through qcrew or the turn ends. A session is `idle` from its start. With hooks, a failed model request is
+`error` unless an event follows within ten seconds; `exited` follows the end of the program as tmux shows it.
+The Codex session id is recorded in the window option `@qcrew-agent-session` once Codex reports it.
+
 ## Inbox
 
-Every Claude Code session that waits creates an inbox entry for its project: `permission` (it asks to run
+Every Claude Code or Codex session that waits creates an inbox entry for its project: `permission` (it asks to run
 something), `question` (it asks you something), `idle` (it has been idle for a minute) or `error` (its program
 ended without ending its session). A session has at most one open entry. `qcrew inbox list [--project P] [--all]`
 shows the entries, `qcrew inbox show <id>` one entry with the last screen lines of the session from when it
@@ -93,8 +104,8 @@ arose, and `qcrew project list` the number of open entries per project (`inbox_o
 
 `qcrew inbox answer <id> --text T` types the text into the session's window and presses Enter. The answer is
 always one line: line breaks become spaces, other control characters are removed, and it is limited to 1000
-characters. For a `permission` entry the words `yes`, `always` and `no` press the key that chooses that option
-instead of typing the word. An entry goes from `open` to `answered` and `delivered`, and to `picked` once the
+characters. For a `permission` entry of Claude Code the words `yes`, `always` and `no` press the key that
+chooses that option instead of typing the word; for Codex every answer is typed. An entry goes from `open` to `answered` and `delivered`, and to `picked` once the
 session works on; `qcrew inbox close <id>` closes it without an answer. If the session has no live window the
 answer fails with `session-gone` and the entry stays open. Entries live in the memory of the service and are
 gone when it stops. Text and screen lines come from the tool and are shown with control characters masked.

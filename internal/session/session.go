@@ -20,6 +20,8 @@ import (
 
 	"github.com/castrowithcee/qatlas-crew/internal/adapter"
 	"github.com/castrowithcee/qatlas-crew/internal/adapter/claude"
+	"github.com/castrowithcee/qatlas-crew/internal/adapter/codex"
+	"github.com/castrowithcee/qatlas-crew/internal/control"
 	"github.com/castrowithcee/qatlas-crew/internal/project"
 )
 
@@ -113,7 +115,10 @@ type Session struct {
 	Title   string
 	Started time.Time
 	Status  string
-	window  string
+	// Bell is set while the window has an unconsumed bell, which a Codex session rings for a prompt; see
+	// ClearBell.
+	Bell   bool
+	window string
 }
 
 // The window options that carry a session. tmux holds them, so they outlive the service.
@@ -126,11 +131,15 @@ const (
 	// optAgentSession holds the id a tool knows the session by, for tools that take one. A later resume needs
 	// it, so it lives in tmux with the rest.
 	optAgentSession = "@qcrew-agent-session"
+	// optBell is set by the alert-bell hook of a window that rings and cleared when the service has taken the
+	// ring in. A window option, unlike the bell flag, is set again by every ring and is cleared without
+	// selecting another window.
+	optBell = "@qcrew-bell"
 )
 
 // listFormat puts the title last because it is the only free text.
 var listFormat = strings.Join([]string{"#{window_id}", "#{pane_dead}", "#{" + optSession + "}", "#{" + optProject + "}",
-	"#{" + optTool + "}", "#{" + optStarted + "}", "#{" + optTitle + "}"}, "\t")
+	"#{" + optTool + "}", "#{" + optStarted + "}", "#{" + optBell + "}", "#{" + optTitle + "}"}, "\t")
 
 // placeholder holds a new window open while its options are set, so that even a tool that ends at once
 // meets remain-on-exit and leaves an exited session behind.
@@ -191,8 +200,11 @@ func newUUID() (string, error) {
 
 // adapterFor returns the adapter of a tool.
 func (m *Manager) adapterFor(tool string) (adapter.Adapter, error) {
-	if tool == adapter.Claude {
+	switch tool {
+	case adapter.Claude:
 		return claude.Adapter{Getenv: m.getenv}, nil
+	case adapter.Codex:
+		return codex.Adapter{}, nil
 	}
 	return adapter.Plain(tool, m.getenv)
 }
@@ -253,11 +265,11 @@ func (m *Manager) List(ctx context.Context) ([]Session, error) {
 func parseList(out string) []Session {
 	list := []Session{}
 	for line := range strings.Lines(out) {
-		f := strings.SplitN(strings.TrimSuffix(line, "\n"), "\t", 7)
-		if len(f) != 7 || f[2] == "" {
+		f := strings.SplitN(strings.TrimSuffix(line, "\n"), "\t", 8)
+		if len(f) != 8 || f[2] == "" {
 			continue // a window qcrew did not start
 		}
-		s := Session{window: f[0], ID: f[2], Project: f[3], Tool: f[4], Title: f[6], Status: StatusRunning}
+		s := Session{window: f[0], ID: f[2], Project: f[3], Tool: f[4], Title: f[7], Status: StatusRunning, Bell: f[6] != ""}
 		if f[1] == "1" {
 			s.Status = StatusExited
 		}
@@ -346,7 +358,7 @@ func (m *Manager) Start(ctx context.Context, req StartRequest) (Session, error) 
 		Started: m.now().UTC().Truncate(time.Second)}
 	as := adapter.Session{ID: id, Dir: req.Dir, DataDir: m.dataDir}
 	as.Program, _ = m.executable() // only a tool that calls back needs it, and its adapter refuses without
-	if adapter.HasHooks(req.Tool) {
+	if adapter.TakesSessionID(req.Tool) {
 		if as.AgentSession, err = m.newUUID(); err != nil {
 			return Session{}, err
 		}
@@ -388,6 +400,14 @@ func (m *Manager) Start(ctx context.Context, req StartRequest) (Session, error) 
 	for _, opt := range options {
 		setup = append(setup, set(opt[0], opt[1])...)
 	}
+	if req.Tool == adapter.Codex {
+		// A prompt rings the bell; the hook keeps a record of every ring in an option of the window.
+		for _, opt := range [][2]string{{"monitor-bell", "on"}, {"bell-action", "any"}} {
+			setup = append(setup, set(opt[0], opt[1])...)
+		}
+		setup = append(setup, "set-hook", "-w", "-t", window, "alert-bell",
+			"set-option -w -t "+window+" "+optBell+" 1", ";")
+	}
 	setup = append(setup, "select-pane", "-t", pane, "-T", s.Title)
 	if _, err := m.tmux(ctx, setup...); err != nil {
 		_, _ = m.tmux(ctx, "kill-window", "-t", window)
@@ -398,7 +418,11 @@ func (m *Manager) Start(ctx context.Context, req StartRequest) (Session, error) 
 		return Session{}, fmt.Errorf("prepare the tool: %w", err)
 	}
 	command = ad.Command(as)
-	if _, err := m.tmux(ctx, append([]string{"respawn-pane", "-k", "-t", pane, "-c", req.Dir, "--"}, command...)...); err != nil {
+	respawn := []string{"respawn-pane", "-k", "-t", pane, "-c", req.Dir}
+	for _, kv := range ad.Env(as) {
+		respawn = append(respawn, "-e", kv)
+	}
+	if _, err := m.tmux(ctx, append(append(respawn, "--"), command...)...); err != nil {
 		_, _ = m.tmux(ctx, "kill-window", "-t", window)
 		ad.Cleanup(as)
 		return Session{}, fmt.Errorf("start the tool: %w", err)
@@ -521,6 +545,39 @@ func (m *Manager) SendText(ctx context.Context, id, text string) error {
 	}
 	if _, err := m.tmux(ctx, "send-keys", "-t", s.window, "Enter"); err != nil {
 		return fmt.Errorf("send Enter: %w", err)
+	}
+	return nil
+}
+
+// SetAgentSession records the id a tool knows a session by in the window of the session, where a later
+// resume finds it beside the other options. The id must be one control.ValidAgentSessionID accepts.
+func (m *Manager) SetAgentSession(ctx context.Context, id, agentSession string) error {
+	if !control.ValidAgentSessionID(agentSession) {
+		return refuse(ErrInvalid, "the tool session id is not valid")
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	s, err := m.find(ctx, id)
+	if err != nil {
+		return err
+	}
+	if _, err := m.tmux(ctx, "set-option", "-w", "-t", s.window, optAgentSession, agentSession); err != nil {
+		return fmt.Errorf("record the tool session id: %w", err)
+	}
+	return nil
+}
+
+// ClearBell takes the ring of a session's window in: it clears the record of it, so that the next ring is
+// seen as a new one. Only the window of that session is addressed.
+func (m *Manager) ClearBell(ctx context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	s, err := m.find(ctx, id)
+	if err != nil {
+		return err
+	}
+	if _, err := m.tmux(ctx, "set-option", "-w", "-u", "-t", s.window, optBell); err != nil {
+		return fmt.Errorf("clear the bell: %w", err)
 	}
 	return nil
 }
