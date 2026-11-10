@@ -1,0 +1,40 @@
+qcrew                                                                                            [esc] Zurück  [?] Hilfe
+   1 Projekte   2 Postfach   3 Sessions   4 Einstellungen  [5 Setup]                                                    
+------------------------------------------------------------------------------------------------------------------------
+> Programme, die qcrew braucht                                                                                          
+  PROGRAMM  STATUS       VERSION   INSTALLATION                                                                         
+  tmux      installiert  tmux 3.4                                                                                       
+> claude    fehlt                  [installieren]                                                                       
+  codex     fehlt                  siehe https://github.com/openai/codex                                                
+  Ergebnis                                                                                                              
+Noch keine Zeilen.                                                                                                      
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                            #= Programm installieren ======================================#                            
+                            | ! claude installieren?                                       |                            
+                            |                                                              |                            
+                            | qcrew übergibt das Terminal an 'qcrew setup install claude'. |                            
+                            | Dort wird jeder Befehl noch einmal gezeigt und vor der       |                            
+                            | Ausführung gefragt; ein Befehl mit sudo fragt ein zweites    |                            
+                            | Mal. Ohne dein Ja läuft dort nichts.                         |                            
+                            | $ curl -fsSL https://claude.ai/install.sh | bash             |                            
+                            |                                                              |                            
+                            | [ installieren ]  > abbrechen <                              |                            
+                            | y installieren  n/esc/enter abbrechen                        |                            
+                            #==============================================================#                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+[ L mitlaufend ]  [ / Suchen ]  [ w Zeilen umbrechen an ]  [ t Zeitstempel aus ]                                        
+                                                                                                                     2/3

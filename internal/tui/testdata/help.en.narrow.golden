@@ -1,7 +1,7 @@
 qcrew                                               [?] help
-  [1 Projects]  2 Inbox   3 Sessions   4 Settings           
+  [1 Projects]  2 Inbox   3 Sessions   4 Settings   5 Setup 
 ------------------------------------------------------------
-> Projects                                                  
+> Projects                         [ + project ] [ remove ] 
   #= Help ===============================================#  
 > | [qcrew]  service-guide   project-guide   session-gui |  
   |                                                      |  
@@ -11,7 +11,7 @@ qcrew                                               [?] help
   | several projects.                                    |  
   |                                                      |  
   | Commands:                                            |  
-  | - qcrew, qcrew tui: open the terminal interface (at  |  
+  | - qcrew, qcrew tui: open the terminal interface (at  |] 
   |   a terminal; without one qcrew shows this           |  
 > |   overview), see qcrew tui --help                    |  
   | - qcrew version: print the version                   |  
@@ -21,10 +21,10 @@ qcrew                                               [?] help
   |   directories qcrew works in, see the project-guide  |  
   |   topic                                              |  
   | - qcrew session start|list|stop|attach: run agent    |  
-  | lines 1-16 of 44                                     |  
+  | lines 1-16 of 52                                     |  
   |                                                      |  
   | left/right topic  up/down scroll  esc/? close        |  
   #======================================================#  
                                                             
-enter sessions  / search  f full screen  r reload  1-4 area 
-q quit                                   up/down choose  1/2
+enter sessions  / search  n add project  f full screen      
+r reload  1-5 area  q quit               up/down choose  1/2

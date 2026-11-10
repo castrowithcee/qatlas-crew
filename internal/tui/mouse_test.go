@@ -101,7 +101,7 @@ func TestTheFooterKeysActLikeTheKeys(t *testing.T) {
 		t.Fatal("the footer key did not switch back")
 	}
 	send(m, "enter")
-	x, y = cellOf(t, m, "x stop session")
+	x, y = cellOf(t, m, "e stop session")
 	clickAt(m, x, y)
 	if m.modal == nil {
 		t.Fatal("the footer key did not open the question")
@@ -128,7 +128,7 @@ func TestTheWheelMovesTheMarkedRow(t *testing.T) {
 func TestNothingBehindAQuestionTakesAClick(t *testing.T) {
 	b := demoBackend()
 	m := newTestModel(t, i18n.English, b, wideWidth, wideHeight)
-	send(m, "enter", "x")
+	send(m, "enter", "e")
 	m.render()
 	x, y := cellOf(t, m, "Inbox")
 	clickAt(m, x, y)
@@ -243,7 +243,8 @@ func TestEveryVisibleElementHasAClickTarget(t *testing.T) {
 	}{
 		{"projects", nil}, {"sessions", []string{"enter"}}, {"full-projects", []string{"f"}},
 		{"full-sessions", []string{"enter", "f"}}, {"inbox", []string{"2"}}, {"settings", []string{"4"}},
-		{"stop", []string{"enter", "x"}}, {"help", []string{"?"}},
+		{"stop", []string{"enter", "e"}}, {"help", []string{"?"}},
+		{"setup", []string{"5"}}, {"setup-install", []string{"5", "down", "i"}},
 	}
 	sizes := map[string][2]int{"narrow": {60, 30}, "wide": {120, 40}}
 	for _, s := range states {
@@ -307,6 +308,14 @@ func TestEveryVisibleElementHasAClickTarget(t *testing.T) {
 							for _, btn := range []kittui.TextID{kittui.TextKeySave, kittui.TextKeyDiscard} {
 								if !wantTarget(t, m, "settings button", m.text.Lookup(btn), 3, func(kittui.MouseResult) bool { return true }) {
 									t.Errorf("button %q is not drawn:\n%s", btn, screen)
+								}
+							}
+						}
+						if m.area == areaSetup {
+							rows(m.setup.list, "claude", "codex")
+							for _, id := range []kittui.TextID{textPaneSetup, textPaneSetupLog} {
+								if !wantTarget(t, m, "setup pane title", m.text.Lookup(id), 3, func(r kittui.MouseResult) bool { return r.Area == areaSetup }) {
+									t.Errorf("title %q is not drawn:\n%s", id, screen)
 								}
 							}
 						}

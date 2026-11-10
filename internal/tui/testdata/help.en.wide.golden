@@ -1,7 +1,7 @@
 qcrew                                                                                                           [?] help
-  [1 Projects]  2 Inbox   3 Sessions   4 Settings                                                                       
+  [1 Projects]  2 Inbox   3 Sessions   4 Settings   5 Setup                                                             
 ------------------------------------------------------------------------------------------------------------------------
-> Projects                               |   Sessions of alpha                                                          
+> Projects     [ + project ] [ remove ]  |   Sessions of alpha                           [ claude ] [ codex ] [ shell ] 
   PROJECT  INBOX      #= Help ===================================================================#                      
 > alpha        3      | [qcrew]  service-guide   project-guide   session-guide   inbox-guide     |                      
   beta         0      |                                                                          |                      
@@ -21,20 +21,20 @@ qcrew                                                                           
                       |   see the session-guide topic                                            |                      
                       | - qcrew inbox list|show|answer|close: see what the sessions wait for and |                      
                       |   answer it, see the inbox-guide topic                                   |                      
+                      | - qcrew setup [--check], qcrew setup install <tmux|claude|codex>: show   |                      
+                      |   which of tmux, Claude Code and Codex are installed and, at a terminal, |                      
+                      |   install missing ones after you confirm each command in full (a sudo    |                      
+                      |   command asks twice); --check only looks and exits 0 even if something  |                      
+                      |   is missing                                                             |                      
                       | - qcrew self-update [version], qcrew self-update status: update qcrew    |                      
                       |   itself to the latest stable release or to a given newer one from its   |                      
                       |   signed GitHub releases; status shows the installed version and the     |                      
                       |   latest release and changes nothing (updating needs --confirm)          |                      
                       | - qcrew help <topic>: show a help topic                                  |                      
                       |                                                                          |                      
-                      | This screen                                                              |                      
-                      |   enter sessions                                                         |                      
-                      |   / search                                                               |                      
-                      |   f full screen                                                          |                      
-                      |   r reload                                                               |                      
-                      | lines 1-27 of 38                                                         |                      
+                      | lines 1-27 of 44                                                         |                      
                       |                                                                          |                      
                       | left/right topic  up/down scroll  pgup/pgdown page  esc/? close          |                      
                       #==========================================================================#                      
                                          |                                                                              
-enter sessions  / search  f full screen  r reload  1-4 area  q quit                                  up/down choose  1/2
+enter sessions  / search  n add project  f full screen  r reload  1-5 area  q quit                   up/down choose  1/2

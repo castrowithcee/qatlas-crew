@@ -127,6 +127,15 @@ func (c *Client) Stop(ctx context.Context) error {
 	return err
 }
 
+// SetupCheck asks the service which of the programs qcrew needs are installed. It installs nothing.
+func (c *Client) SetupCheck(ctx context.Context) ([]control.SetupDependency, error) {
+	var res control.SetupCheckResult
+	if err := c.callInto(ctx, control.OpSetupCheck, nil, &res); err != nil {
+		return nil, err
+	}
+	return res.Dependencies, nil
+}
+
 // Projects returns the registered projects.
 func (c *Client) Projects(ctx context.Context) ([]control.Project, error) {
 	var res control.ProjectListResult

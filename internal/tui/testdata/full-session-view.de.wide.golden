@@ -1,5 +1,5 @@
 qcrew                                                                                            [esc] Zurück  [?] Hilfe
-   1 Projekte   2 Postfach  [3 Sessions]  4 Einstellungen                                                               
+   1 Projekte   2 Postfach  [3 Sessions]  4 Einstellungen   5 Setup                                                     
 ------------------------------------------------------------------------------------------------------------------------
 > Session-Ansicht: refactor parser                                                                                      
 first line                                                                                                              
@@ -36,5 +36,5 @@ first line
                                                                                                                         
                                                                                                                         
   Tool: claude  Status: läuft                                                                                           
-enter Session steuern  / Suchen  x Session stoppen  f Spalten  r Neu laden  1-4 Bereich  q Beenden                      
+enter Session steuern  / Suchen  e Session stoppen  c/x/s starten  f Spalten  r Neu laden  1-5 Bereich  q Beenden       
                                                                                                   up/down Auswählen  1/3

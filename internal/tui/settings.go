@@ -206,4 +206,5 @@ func (m *Model) relocalize(lang i18n.Lang) {
 	pm.restore(m.projList)
 	m.fillSessions(false)
 	sm.restore(m.sessList)
+	m.relocalizeSetup()
 }

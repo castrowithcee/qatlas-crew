@@ -1,7 +1,7 @@
 qcrew                                [esc] Zurück  [?] Hilfe
-  [1 Projekte]  2 Postfach   3 Sessions   4 Einstellungen   
+  [1 Projekte] 2 Postfach 3 Sessions 4 Einstellungen 5 Setup
 ------------------------------------------------------------
-> Projekte                                                  
+> Projekte                      [ + Projekt ] [ entfernen ] 
   PROJEKT  POSTFACH                                         
 > alpha           3                                         
   beta            0                                         
@@ -26,5 +26,5 @@ qcrew                                [esc] Zurück  [?] Hilfe
                                                             
                                                             
                                                             
-enter Sessions  / Suchen  f Spalten  r Neu laden            
-1-4 Bereich  q Beenden                up/down Auswählen  1/2
+enter Sessions  / Suchen  n Projekt anlegen  f Spalten      
+r Neu laden  1-5 Bereich  q Beenden   up/down Auswählen  1/2

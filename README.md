@@ -3,8 +3,8 @@
 qcrew is a program with a terminal interface for working with several AI agent command line tools, such as
 Claude Code and Codex, in parallel across several projects.
 
-**Status: early.** The terminal interface shows projects and sessions and embeds the chosen session; it does
-not yet start sessions or add projects, which the command line does. Expect breaking changes before v1.0.0.
+**Status: early.** The terminal interface adds and removes projects, starts and stops sessions and embeds the
+chosen session as a live view. Expect breaking changes before v1.0.0.
 
 ## Installation
 
@@ -30,6 +30,8 @@ qcrew version        # print the version
 qcrew service start  # start the background service
 qcrew service status # show whether it runs (--output json for scripts)
 qcrew service stop   # stop it
+qcrew setup          # check tmux, Claude Code and Codex and offer to install what is missing
+qcrew setup --check  # only look (--output json for scripts)
 qcrew project add .  # register the current directory as a project
 qcrew project list   # list the projects (--output json for scripts)
 qcrew session start --project app --tool claude  # start Claude Code in the project app
@@ -47,21 +49,33 @@ the overview and `qcrew tui` fails.
 The projects stand on the left with the number of their open inbox entries, the sessions of the project under
 the cursor on the right with tool, title, status and the time since the status last changed; both refresh
 every two seconds. Below 100 columns the two stack. The areas are Projects, Inbox (a placeholder for now),
-Sessions and Settings.
+Sessions, Settings and Setup, which lists tmux, Claude Code and Codex (see [Setup](#setup)).
 
 | Key | Action |
 | --- | --- |
-| `1` to `4`, or `tab` and left/right | switch the area |
+| `1` to `5`, or `tab` and left/right | switch the area |
 | up/down, `enter` or right, `esc` or left | choose a project, open its sessions, go back |
 | `f` | show the pane of the area alone and back |
-| `x` | stop the session under the cursor, after asking |
+| `n` | add a project |
+| `d` | remove the chosen project, after asking; its folder stays |
+| `c`, `x`, `s` | start a Claude Code, Codex or shell session in the chosen project |
+| `e` | stop the session under the cursor, after asking |
+| `i` (or `enter`) | in Setup: install the program under the cursor, after asking |
 | `/` | filter the list |
 | `r`, `?`, `q` | read again, help, quit |
 
-The mouse does what the keys do: click a tab, a key shown in the header or footer, or a row, and use the wheel.
-With the mouse on, hold Shift to select text. Settings holds theme, language, start area, icons and the mouse;
-they are kept in `tui.yaml` in `~/.qatlas/qcrew` (or in `QCREW_DIR`). If `tmux` is missing the projects still
-show and the interface names the next step, `qcrew setup`. `NO_COLOR` is respected.
+Adding a project opens a folder picker: type a path (`~` is your home, `tab` completes a folder name), or
+choose from the list of the folders in it, where `..` goes up; then use that folder or a new folder in it,
+which qcrew creates, and give the name. A refusal stands in the dialog, and what you typed stays. The buttons
+above the lists add or remove a project and start a session. Which tools are installed is checked at start,
+on `r` and after an installation in the Setup area; a missing tool shows `setup` on its button and starts
+nothing.
+
+The mouse does what the keys do: click a tab, a button, a key shown in the header or footer, or a row, and use
+the wheel. With the mouse on, hold Shift to select text. Settings holds theme, language, start area, icons and
+the mouse; they are kept in `tui.yaml` in `~/.qatlas/qcrew` (or in `QCREW_DIR`). If `tmux` is missing the
+projects still show and the interface names the next step: `qcrew setup`, or the Setup area. `NO_COLOR` is
+respected.
 
 ### Session view
 
@@ -73,6 +87,33 @@ qcrew and never reaches the session; `tui.yaml` can add one more key for it unde
 `viewexit: ctrl+x`. A key that breaks the key rules or that another action holds is reported at start and
 ignored. The wheel acts only in programs that ask for mouse reports; a shell or Claude Code does not scroll
 with it. The view has no text selection of its own for copying.
+
+## Setup
+
+qcrew needs `tmux` and the agent tools you want to run. `qcrew setup` shows for each of `tmux`, `claude` and
+`codex` whether it is installed, its version and, for a missing one, the command that installs it. At a
+terminal it then offers to install what is missing. It uses only the maker's own way:
+
+| Program | Command | Source |
+| --- | --- | --- |
+| tmux | `sudo apt install tmux`, `sudo dnf install tmux`, `sudo pacman -S tmux` or `brew install tmux`, the first package manager found in that order | <https://github.com/tmux/tmux/wiki/Installing> |
+| Claude Code | `curl -fsSL https://claude.ai/install.sh \| bash` | <https://code.claude.com/docs/en/setup> |
+| Codex | `curl -fsSL https://chatgpt.com/codex/install.sh \| sh` | <https://github.com/openai/codex> |
+
+The installers for Claude Code and Codex exist for Linux, macOS and WSL. Without a supported package manager
+tmux is only detected, and the output points to its source.
+
+Every command is shown in full and runs only after you answer yes; a command with `sudo` asks a second time,
+on its own. A refusal ends the installation, and the commands after it do not run. Without a terminal nothing
+is installed: `qcrew setup` exits with code 2. `qcrew setup --check` and `--output json` only look and exit with
+0 whether or not something is missing, so read the `status` column. `qcrew setup install <tmux|claude|codex>`
+installs one program with the same questions.
+
+The Setup area of the terminal interface (key `5`) shows the same list. `i`, `enter` or a second click on a row
+opens a question with the command; after your yes the interface hands the terminal to
+`qcrew setup install <name>`, where the same questions follow and the output appears live. When you return,
+qcrew checks again and the result pane shows the exit code, whether the program is found now and the next step.
+A program installed into a folder that is not in `PATH` stays missing until you add the folder.
 
 ## Service
 

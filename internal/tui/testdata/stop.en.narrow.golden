@@ -1,7 +1,7 @@
 qcrew                                   [esc] back  [?] help
-   1 Projects   2 Inbox  [3 Sessions]  4 Settings           
+   1 Projects   2 Inbox  [3 Sessions]  4 Settings   5 Setup 
 ------------------------------------------------------------
-  Projects                                                  
+  Projects                         [ + project ] [ remove ] 
   PROJECT  INBOX                                            
 > alpha        3                                            
   beta         0                                            
@@ -11,7 +11,7 @@ qcrew                                   [esc] back  [?] help
   #= Stop session =======================================#  
   | ! Stop the session 'refactor parser'?                |  
   |                                                      |  
-> | The agent program ends and its window closes.        |  
+> | The agent program ends and its window closes.        |] 
   | Unsaved work in the session is lost. This cannot be  |  
 > | undone.                                              |  
   | tool: claude                                         |  
