@@ -22,7 +22,7 @@ func TestVersionFlag(t *testing.T) {
 
 func TestNoArgumentsShowsOverview(t *testing.T) {
 	code, out, _ := run(t)
-	if code != 0 || !strings.Contains(out, "self-update") || !strings.Contains(out, "terminal interface follows") {
+	if code != 0 || !strings.Contains(out, "self-update") || strings.Contains(out, "follows in a later release") || !strings.Contains(out, "opens the terminal interface") {
 		t.Fatalf("no arguments = %d %q", code, out)
 	}
 }

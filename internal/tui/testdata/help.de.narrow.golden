@@ -1,0 +1,30 @@
+qcrew                                              [?] Hilfe
+  [1 Projekte]  2 Postfach   3 Sessions   4 Einstellungen   
+------------------------------------------------------------
+> Projekte                                                  
+  #= Hilfe ==============================================#  
+> | [qcrew]  service-guide   project-guide   session-gui |  
+  |                                                      |  
+  | qcrew is a program with a terminal interface for     |  
+  | working with several AI agent command line tools,    |  
+  | such as Claude Code and Codex, in parallel across    |  
+  | several projects.                                    |  
+  |                                                      |  
+  | Commands:                                            |  
+  | - qcrew, qcrew tui: open the terminal interface (at  |  
+  |   a terminal; without one qcrew shows this           |  
+> |   overview), see qcrew tui --help                    |  
+  | - qcrew version: print the version                   |  
+  | - qcrew service start|stop|status: control the       |  
+  |   background service, see the service-guide topic    |  
+  | - qcrew project add|list|remove: register the        |  
+  |   directories qcrew works in, see the project-guide  |  
+  |   topic                                              |  
+  | - qcrew session start|list|stop|attach: run agent    |  
+  | Zeilen 1-16 von 43                                   |  
+  |                                                      |  
+  | left/right Thema  up/down Scrollen  esc/? Schließen  |  
+  #======================================================#  
+                                                            
+enter Sessions  / Suchen  f Vollbild  r Neu laden           
+1-4 Bereich  q Beenden                up/down Auswählen  1/2

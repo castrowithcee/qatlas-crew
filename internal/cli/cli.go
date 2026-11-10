@@ -30,27 +30,32 @@ func Run(args []string, stdout, stderr io.Writer) int {
 }
 
 func newRoot() (*cobracli.Program, error) {
+	access := defaultServiceAccess()
 	root := &cobra.Command{
 		Use:   "qcrew",
 		Short: "Work with several AI agent command line tools in parallel across projects",
 		Long: "qcrew is a program with a terminal interface for working with several AI agent command line tools,\n" +
 			"such as Claude Code and Codex, in parallel across several projects.\n" +
-			"qcrew is in an early state: the terminal interface follows in a later release, so without a command\n" +
-			"qcrew shows this overview.",
-		RunE: func(c *cobra.Command, _ []string) error { return c.Help() },
+			"Without a command, qcrew opens the terminal interface when standard input and output are a terminal,\n" +
+			"and shows this overview otherwise.",
+		RunE: func(c *cobra.Command, _ []string) error {
+			if _, _, ok := terminalStreams(c.OutOrStdout()); ok {
+				return openTUI(c, access)
+			}
+			return c.Help()
+		},
 	}
 	program, err := cobracli.New(root, cobracli.Options{Version: version, Topics: helptopics.All(), Redactor: &redact.Redactor{}})
 	if err != nil {
 		return nil, err
 	}
-	access := defaultServiceAccess()
 	root.PersistentFlags().BoolVar(&access.noAutostart, "no-autostart", false,
 		"fail instead of starting the qcrew service when a command needs it and it is not running")
 	root.PersistentFlags().StringVar(&access.configFlag, "config", "",
 		"configuration file of the qcrew service (default: QCREW_CONFIG, else config.yaml in QCREW_DIR or ~/.qatlas/qcrew)")
 	root.AddCommand(newVersionCommand(program), newSelfUpdateCommand(program), newManpageCommand(program),
 		newServiceCommand(program, access), newProjectCommand(program, access), newSessionCommand(program, access),
-		newInboxCommand(program, access), newHookCommand(access))
+		newInboxCommand(program, access), newHookCommand(access), newTUICommand(access))
 	return program, nil
 }
 

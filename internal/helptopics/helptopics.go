@@ -16,9 +16,10 @@ func All() []helptopics.Topic {
 	}
 }
 
-const overview = `qcrew is a program with a terminal interface for working with several AI agent command line tools, such as Claude Code and Codex, in parallel across several projects. It is in an early state: the terminal interface is not available yet.
+const overview = `qcrew is a program with a terminal interface for working with several AI agent command line tools, such as Claude Code and Codex, in parallel across several projects.
 
 Commands:
+- qcrew, qcrew tui: open the terminal interface (at a terminal; without one qcrew shows this overview), see qcrew tui --help
 - qcrew version: print the version
 - qcrew service start|stop|status: control the background service, see the service-guide topic
 - qcrew project add|list|remove: register the directories qcrew works in, see the project-guide topic

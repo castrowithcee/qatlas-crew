@@ -3,8 +3,8 @@
 qcrew is a program with a terminal interface for working with several AI agent command line tools, such as
 Claude Code and Codex, in parallel across several projects.
 
-**Status: early.** The command line skeleton exists; the terminal interface and the session handling follow.
-Expect breaking changes before v1.0.0.
+**Status: early.** The terminal interface shows projects and sessions; it does not yet embed a session view,
+start sessions or add projects, which the command line does. Expect breaking changes before v1.0.0.
 
 ## Installation
 
@@ -24,6 +24,7 @@ release exists.
 ## Usage
 
 ```sh
+qcrew                # open the terminal interface (at a terminal)
 qcrew help           # overview and help topics
 qcrew version        # print the version
 qcrew service start  # start the background service
@@ -36,6 +37,31 @@ qcrew session attach <id>                         # show the session in this ter
 qcrew inbox list                                  # what the sessions wait for
 qcrew inbox answer <id> --text yes                # answer an entry; the text is typed into the session
 ```
+
+## Terminal interface
+
+`qcrew` without a command, or `qcrew tui`, opens the terminal interface when standard input and output are a
+terminal; it starts the service if needed (`--no-autostart` forbids that). Without a terminal, `qcrew` shows
+the overview and `qcrew tui` fails.
+
+The projects stand on the left with the number of their open inbox entries, the sessions of the project under
+the cursor on the right with tool, title, status and the time since the status last changed; both refresh
+every two seconds. Below 100 columns the two stack. The areas are Projects, Inbox (a placeholder for now),
+Sessions and Settings.
+
+| Key | Action |
+| --- | --- |
+| `1` to `4`, or `tab` and left/right | switch the area |
+| up/down, `enter` or right, `esc` or left | choose a project, open its sessions, go back |
+| `f` | show the pane of the area alone and back |
+| `x` | stop the session under the cursor, after asking |
+| `/` | filter the list |
+| `r`, `?`, `q` | read again, help, quit |
+
+The mouse does what the keys do: click a tab, a key shown in the header or footer, or a row, and use the wheel.
+With the mouse on, hold Shift to select text. Settings holds theme, language, start area, icons and the mouse;
+they are kept in `tui.yaml` in `~/.qatlas/qcrew` (or in `QCREW_DIR`). If `tmux` is missing the projects still
+show and the interface names the next step, `qcrew setup`. `NO_COLOR` is respected.
 
 ## Service
 
