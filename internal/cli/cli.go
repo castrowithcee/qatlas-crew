@@ -49,7 +49,8 @@ func newRoot() (*cobracli.Program, error) {
 	root.PersistentFlags().StringVar(&access.configFlag, "config", "",
 		"configuration file of the qcrew service (default: QCREW_CONFIG, else config.yaml in QCREW_DIR or ~/.qatlas/qcrew)")
 	root.AddCommand(newVersionCommand(program), newSelfUpdateCommand(program), newManpageCommand(program),
-		newServiceCommand(program, access), newProjectCommand(program, access), newSessionCommand(program, access))
+		newServiceCommand(program, access), newProjectCommand(program, access), newSessionCommand(program, access),
+		newHookCommand(access))
 	return program, nil
 }
 

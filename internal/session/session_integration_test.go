@@ -182,3 +182,78 @@ func TestStartSurvivesDestroyUnattached(t *testing.T) {
 		t.Fatalf("the project session is gone: %v", err)
 	}
 }
+
+// fakeTool puts a program of the given name on the PATH, which tmux takes from the process that starts the
+// session. It records its arguments in args.txt of dir and waits.
+func fakeTool(t *testing.T, name string) (args string) {
+	t.Helper()
+	bin := t.TempDir()
+	args = bin + "/args.txt"
+	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + args + "\nsleep 60\n"
+	if err := os.WriteFile(bin+"/"+name, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
+	return args
+}
+
+func TestClaudeSessionIsPreparedAndCleaned(t *testing.T) {
+	const project = "claude234567"
+	srv := testenv.Tmux(t)
+	testenv.Setup(t)
+	t.Setenv("SHELL", "/bin/sh")
+	t.Cleanup(func() { _, _ = srv.Run("kill-session", "-t", "="+SessionName(project)) })
+	argsFile := fakeTool(t, "claude")
+	data := t.TempDir()
+	m := New(Server{Socket: srv.Socket()}, WithDataDir(data),
+		WithExecutable(func() (string, error) { return "/opt/qcrew/qcrew", nil }))
+	ctx := context.Background()
+
+	s, err := m.Start(ctx, StartRequest{ProjectID: project, Dir: t.TempDir(), Tool: "claude"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings := data + "/sessions/" + s.ID + "/claude-settings.json"
+	if _, err := os.Stat(settings); err != nil {
+		t.Fatalf("settings file: %v", err)
+	}
+	waitUntil(t, "the tool to record its arguments", func() bool { _, err := os.Stat(argsFile); return err == nil })
+	raw, _ := os.ReadFile(argsFile)
+	got := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	if len(got) != 6 || got[0] != "--session-id" || len(got[1]) != 36 || got[2] != "--prompt-suggestions" || got[3] != "false" ||
+		got[4] != "--settings" || got[5] != settings {
+		t.Fatalf("arguments: %q", got)
+	}
+	out, err := srv.Run("list-windows", "-a", "-F", "#{@qcrew-session} #{@qcrew-agent-session}")
+	if err != nil || !strings.Contains(out, s.ID+" "+got[1]+"\n") {
+		t.Fatalf("window options: %q, %v", out, err)
+	}
+	if _, err := m.Stop(ctx, s.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(data + "/sessions/" + s.ID); !os.IsNotExist(err) {
+		t.Fatalf("the session folder is still there: %v", err)
+	}
+}
+
+// A tool that cannot be prepared starts no window and leaves no files.
+func TestFailedPrepareLeavesNothing(t *testing.T) {
+	const project = "prepare23456"
+	srv := testenv.Tmux(t)
+	testenv.Setup(t)
+	t.Setenv("SHELL", "/bin/sh")
+	t.Cleanup(func() { _, _ = srv.Run("kill-session", "-t", "="+SessionName(project)) })
+	fakeTool(t, "claude")
+	data := t.TempDir()
+	m := New(Server{Socket: srv.Socket()}, WithDataDir(data),
+		WithExecutable(func() (string, error) { return "relative/qcrew", nil }))
+	if _, err := m.Start(context.Background(), StartRequest{ProjectID: project, Dir: t.TempDir(), Tool: "claude"}); err == nil {
+		t.Fatal("start succeeded without a usable qcrew program path")
+	}
+	if list, err := m.List(context.Background()); err != nil || len(list) != 0 {
+		t.Fatalf("sessions after a failed start: %+v, %v", list, err)
+	}
+	if entries, _ := os.ReadDir(data); len(entries) != 0 {
+		t.Fatalf("files left behind: %v", entries)
+	}
+}

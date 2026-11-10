@@ -35,8 +35,15 @@ func TestEncodeGolden(t *testing.T) {
 			`{"v":1,"op":"session.start","args":{"project":"app","tool":"shell"}}` + "\n"},
 		{"session capture", req(OpSessionCapture, SessionCaptureArgs{ID: "x", Lines: 5}),
 			`{"v":1,"op":"session.capture","args":{"id":"x","lines":5}}` + "\n"},
-		{"session", ok(Session{ID: "s", Project: "p", Tool: "shell", Title: "t", Status: "running", StartedAt: start}),
-			`{"ok":true,"result":{"id":"s","project":"p","tool":"shell","title":"t","status":"running","started_at":"2026-01-02T03:04:05Z"}}` + "\n"},
+		{"session", ok(Session{ID: "s", Project: "p", Tool: "shell", Title: "t", Status: "running", Since: start, StartedAt: start}),
+			`{"ok":true,"result":{"id":"s","project":"p","tool":"shell","title":"t","status":"running","since":"2026-01-02T03:04:05Z","started_at":"2026-01-02T03:04:05Z"}}` + "\n"},
+		{"session with context", ok(Session{ID: "s", Project: "p", Tool: "claude", Title: "t", Status: "idle", Since: start,
+			ContextPercent: new(7), StartedAt: start}),
+			`{"ok":true,"result":{"id":"s","project":"p","tool":"claude","title":"t","status":"idle","since":"2026-01-02T03:04:05Z","context_percent":7,"started_at":"2026-01-02T03:04:05Z"}}` + "\n"},
+		{"event push", req(OpEventPush, EventPushArgs{Session: "abcdefghij23", Source: EventSourceHook, Event: "Notification", Type: "idle_prompt"}),
+			`{"v":1,"op":"event.push","args":{"session":"abcdefghij23","source":"hook","event":"Notification","type":"idle_prompt"}}` + "\n"},
+		{"event push context", req(OpEventPush, EventPushArgs{Session: "abcdefghij23", Source: EventSourceHook, Event: EventContext, ContextPercent: new(0)}),
+			`{"v":1,"op":"event.push","args":{"session":"abcdefghij23","source":"hook","event":"qcrew.context","context_percent":0}}` + "\n"},
 		{"ok empty", ok(struct{}{}), `{"ok":true,"result":{}}` + "\n"},
 		{"ok none", ok(nil), `{"ok":true}` + "\n"},
 		{"status", ok(StatusResult{Version: "v1.2.3", PID: 42, StartedAt: start}),
@@ -165,5 +172,64 @@ func TestReadLine(t *testing.T) {
 	buf.WriteString(strings.Repeat("y", MaxMessage+1) + "\n")
 	if _, err := ReadLine(bufio.NewReader(&buf)); !errors.Is(err, ErrTooLarge) {
 		t.Errorf("limit+1: %v", err)
+	}
+}
+
+func TestValidSessionID(t *testing.T) {
+	for id, want := range map[string]bool{"abcdefghij23": true, "234567abcdef": true, "": false, "abcdefghij2": false,
+		"abcdefghij234": false, "ABCDEFGHIJ23": false, "abcdefghij21": false, "abcdefghij2\n": false, "../../x/abcd": false} {
+		if ValidSessionID(id) != want {
+			t.Errorf("ValidSessionID(%q) != %v", id, want)
+		}
+	}
+}
+
+func TestEventPushValidate(t *testing.T) {
+	good := EventPushArgs{Session: "abcdefghij23", Source: EventSourceHook, Event: "Stop"}
+	with := func(f func(*EventPushArgs)) EventPushArgs {
+		a := good
+		f(&a)
+		return a
+	}
+	cases := []struct {
+		name string
+		args EventPushArgs
+		ok   bool
+	}{
+		{"minimal", good, true},
+		{"full", with(func(a *EventPushArgs) {
+			a.Type, a.Tool, a.Start, a.Text, a.ContextPercent = "idle_prompt", "mcp__x__y", "startup", "Fertig \u00e4\u00f6", new(100)
+		}), true},
+		{"pseudo event", with(func(a *EventPushArgs) { a.Event = EventHookError }), true},
+		{"session", with(func(a *EventPushArgs) { a.Session = "x" }), false},
+		{"source", with(func(a *EventPushArgs) { a.Source = "screen" }), false},
+		{"empty event", with(func(a *EventPushArgs) { a.Event = "" }), false},
+		{"event with space", with(func(a *EventPushArgs) { a.Event = "Stop now" }), false},
+		{"long event", with(func(a *EventPushArgs) { a.Event = strings.Repeat("a", MaxEventName+1) }), false},
+		{"long type", with(func(a *EventPushArgs) { a.Type = strings.Repeat("a", MaxEventType+1) }), false},
+		{"long tool", with(func(a *EventPushArgs) { a.Tool = strings.Repeat("a", MaxEventTool+1) }), false},
+		{"long start", with(func(a *EventPushArgs) { a.Start = strings.Repeat("a", MaxEventStart+1) }), false},
+		{"text at the limit", with(func(a *EventPushArgs) { a.Text = strings.Repeat("\u00e4", MaxEventText) }), true},
+		{"long text", with(func(a *EventPushArgs) { a.Text = strings.Repeat("a", MaxEventText+1) }), false},
+		{"control in text", with(func(a *EventPushArgs) { a.Text = "a\x1b[31m" }), false},
+		{"newline in text", with(func(a *EventPushArgs) { a.Text = "a\nb" }), false},
+		{"control in tool", with(func(a *EventPushArgs) { a.Tool = "a\x00" }), false},
+		{"invalid utf-8", with(func(a *EventPushArgs) { a.Text = "a\xff" }), false},
+		{"percent high", with(func(a *EventPushArgs) { a.ContextPercent = new(101) }), false},
+		{"percent low", with(func(a *EventPushArgs) { a.ContextPercent = new(-1) }), false},
+	}
+	for _, c := range cases {
+		if err := c.args.Validate(); (err == nil) != c.ok {
+			t.Errorf("%s: %v, want ok=%v", c.name, err, c.ok)
+		} else if err != nil && strings.Contains(err.Error(), "\x1b") {
+			t.Errorf("%s: the error repeats the value: %q", c.name, err)
+		}
+	}
+	// The largest event fits a message with room to spare.
+	big := EventPushArgs{Session: "abcdefghij23", Source: EventSourceHook, Event: strings.Repeat("a", MaxEventName),
+		Type: strings.Repeat("a", MaxEventType), Tool: strings.Repeat("a", MaxEventTool), Start: strings.Repeat("a", MaxEventStart),
+		Text: strings.Repeat("\U0001F600", MaxEventText), ContextPercent: new(100)}
+	if _, err := EncodeRequest(OpEventPush, big); err != nil {
+		t.Errorf("the largest event does not fit a message: %v", err)
 	}
 }

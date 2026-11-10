@@ -36,12 +36,21 @@ func sessionFailure(err error) error {
 	return serviceFailure(err)
 }
 
-var sessionColumns = []string{"id", "project", "tool", "title", "status", "started_at"}
+var sessionColumns = []string{"id", "project", "tool", "title", "status", "since", "context_percent", "started_at"}
+
+// contextValue is the fill of the context window, or nil, shown empty and as null, while it is unknown.
+func contextValue(x control.Session) any {
+	if x.ContextPercent == nil {
+		return nil
+	}
+	return int64(*x.ContextPercent)
+}
 
 func sessionObject(x control.Session) output.Object {
 	return output.Object{Fields: []output.Field{
 		{Name: "id", Value: x.ID}, {Name: "project", Value: x.Project}, {Name: "tool", Value: x.Tool},
 		{Name: "title", Value: x.Title}, {Name: "status", Value: x.Status},
+		{Name: "since", Value: x.Since.Format(time.RFC3339)}, {Name: "context_percent", Value: contextValue(x)},
 		{Name: "started_at", Value: x.StartedAt.Format(time.RFC3339)},
 	}}
 }
@@ -50,7 +59,8 @@ func writeSessions(w io.Writer, format output.Format, sessions []control.Session
 	rows := make([]output.Row, 0, len(sessions))
 	for _, x := range sessions {
 		rows = append(rows, output.Row{"id": x.ID, "project": x.Project, "tool": x.Tool, "title": x.Title,
-			"status": x.Status, "started_at": x.StartedAt.Format(time.RFC3339)})
+			"status": x.Status, "since": x.Since.Format(time.RFC3339), "context_percent": contextValue(x),
+			"started_at": x.StartedAt.Format(time.RFC3339)})
 	}
 	return output.Encode(w, format, output.Collection{Columns: sessionColumns, Rows: rows})
 }
@@ -143,9 +153,11 @@ func newSessionCommand(program *cobracli.Program, access *serviceAccess) *cobra.
 	var listProject string
 	list := &cobra.Command{
 		Use:   "list",
-		Short: "List the sessions with id, project, tool, title, status and start time",
+		Short: "List the sessions with id, project, tool, title, status, since, context and start time",
 		Long: "list shows the sessions of every project, or of the project given with --project, in the order\n" +
-			"they started. The status is running while the tool runs and exited after it ended.",
+			"they started. The status is running, waiting, idle, error or exited, and since is when the session took\n" +
+			"it. Claude Code reports all five; the other tools show running while they run and exited after they\n" +
+			"ended. context_percent is how full the tool's context window is, empty while unknown.",
 		Args: cobra.NoArgs,
 		RunE: func(c *cobra.Command, _ []string) error {
 			cl, err := access.projectClient(c.Context())

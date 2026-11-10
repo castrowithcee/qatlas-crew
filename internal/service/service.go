@@ -55,6 +55,9 @@ type Options struct {
 	Config string
 	// Ready is called once the service listens, before it accepts the first connection.
 	Ready func()
+	// Program returns the path of the qcrew program that the hooks of a tool call; empty means the running
+	// program. Tests of a program that is no qcrew binary replace it.
+	Program func() (string, error)
 
 	// Hooks for tests; the zero values are the production behaviour.
 	programReplaced func() (string, bool, error)
@@ -62,6 +65,8 @@ type Options struct {
 	logMax          int64
 	// tmux replaces the tmux server that QCREW_TMUX_SOCKET selects.
 	tmux *session.Server
+	// now replaces the clock of the session status.
+	now func() time.Time
 }
 
 // handler answers one operation with its arguments, which may be empty. A *control.Error answers with its
@@ -76,6 +81,7 @@ type server struct {
 	projects *project.Registry
 	sessions *session.Manager
 	mirror   mirror
+	status   *tracker
 	// lifecycle orders the starting of sessions against the removal of projects.
 	lifecycle sync.Mutex
 	cancel    context.CancelFunc
@@ -140,10 +146,16 @@ func Run(ctx context.Context, opts Options) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	now := opts.now
+	if now == nil {
+		now = time.Now
+	}
+	logger := slog.New(slog.NewTextHandler(logw, nil))
 	s := &server{
-		log: slog.New(slog.NewTextHandler(logw, nil)), started: time.Now().UTC(), version: opts.Version,
+		log: logger, started: time.Now().UTC(), version: opts.Version,
 		cancel: cancel, replaced: opts.programReplaced, every: opts.watchEvery, conns: map[net.Conn]struct{}{},
-		projects: projects, sessions: session.New(tmuxServer),
+		projects: projects, status: newTracker(func() time.Time { return now().UTC().Truncate(time.Second) }, logger),
+		sessions: session.New(tmuxServer, session.WithDataDir(control.DataDir(home)), session.WithExecutable(opts.Program)),
 	}
 	if s.replaced == nil {
 		s.replaced = localipc.ProgramReplaced
